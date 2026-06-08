@@ -16,8 +16,8 @@ export default function Alarm({ alarmGrense, onEndreGrense, alarmAktiv, onToggle
   }
 
   return (
-    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
-      <h2 style={{ fontSize: '15px', fontWeight: 500, color: tema.tekst, margin: '0 0 12px' }}>Spotpris-alarm</h2>
+    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
+      <h2 style={{ fontSize: '15px', fontWeight: 600, color: tema.tekst, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Spotpris-alarm</h2>
       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
         <input type="number" placeholder="Grense i øre (f.eks. 30)" value={alarmGrense} onChange={e => onEndreGrense(e.target.value)} style={inputStyle} />
         <button onClick={onToggle} style={{ padding: '10px 18px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit', background: alarmAktiv ? '#dab3a6' : tema.tekst, color: alarmAktiv ? '#5a3328' : tema.cardBg, whiteSpace: 'nowrap', transition: 'all 0.2s' }}>

@@ -30,8 +30,8 @@ export default function ApparatVelger({
   }
 
   return (
-    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
-      <h2 style={{ fontSize: '15px', fontWeight: 500, color: tema.tekst, margin: '0 0 14px' }}>Når bør jeg kjøre?</h2>
+    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
+      <h2 style={{ fontSize: '15px', fontWeight: 600, color: tema.tekst, margin: '0 0 14px', letterSpacing: '-0.01em' }}>Når bør jeg kjøre?</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
         {alleApparater.map(a => {
           const valgt = valgtApparat.navn === a.navn

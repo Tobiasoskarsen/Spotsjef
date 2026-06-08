@@ -10,7 +10,7 @@ type Props = {
 export default function VaerKort({ vaer, laster, tema }: Props) {
   if (laster) {
     return (
-      <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', textAlign: 'center', color: tema.subtekst }}>
+      <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', textAlign: 'center', color: tema.subtekst, boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
         Henter vær...
       </div>
     )
@@ -22,7 +22,7 @@ export default function VaerKort({ vaer, laster, tema }: Props) {
   const regn = nesteNedbor(vaer, 6)
 
   return (
-    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
+    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <span style={{ fontSize: '40px', lineHeight: 1 }}>{naaVaer.emoji}</span>

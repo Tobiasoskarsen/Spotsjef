@@ -20,7 +20,7 @@ export default function Tabs({ aktiv, onBytt, tema }: Props) {
       {TABS.map(tab => {
         const erAktiv = aktiv === tab.id
         return (
-          <button key={tab.id} onClick={() => onBytt(tab.id)} style={{ flex: 1, padding: '10px', borderRadius: '14px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s ease', ...(erAktiv ? { background: tema.tekst, color: tema.cardBg } : { background: tema.cardBg, color: tema.subtekst }) }}>
+          <button key={tab.id} onClick={() => onBytt(tab.id)} style={{ flex: 1, padding: '11px', borderRadius: '14px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', ...(erAktiv ? { background: tema.accentGradient, color: '#fff', border: '1px solid transparent', boxShadow: tema.skygge } : { background: tema.cardBg, color: tema.subtekst, border: `1px solid ${tema.border}`, boxShadow: tema.skygge }) }}>
             {tab.label}
           </button>
         )

@@ -8,4 +8,62 @@ body {
   padding: 0;
   font-family: var(--font-figtree), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* Bakgrunn rundt det sentrerte innholdet (lys som standard; mørk modus dekkes av <main>) */
+  background: #e9edf4;
+}
+
+/* Tall (priser, temperatur) får jevn bredde så de ikke "hopper" når de animeres */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtil løft-effekt på trykkbare elementer */
+button {
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease,
+    background 0.2s ease, filter 0.2s ease;
+}
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+select,
+input {
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+::selection {
+  background: rgba(63, 143, 110, 0.22);
+}
+
+/* Tynn, diskret scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 130, 145, 0.35);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 130, 145, 0.55);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  button:not(:disabled):hover {
+    transform: none;
+  }
 }

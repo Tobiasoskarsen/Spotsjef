@@ -94,6 +94,11 @@ export default function Home() {
     localStorage.setItem('dark', String(darkMode))
   }, [darkMode])
 
+  // La området rundt/under det sentrerte innholdet følge temaet
+  useEffect(() => {
+    document.body.style.background = tema.bg
+  }, [tema.bg])
+
   useEffect(() => {
     const data = visIdag ? priser : morgendagPriser
     setAnbefaling(beregnAnbefaling(data, valgtApparat))
@@ -176,19 +181,24 @@ export default function Home() {
   const { min: minPris, max: maxPris, snitt: snittPris } = prisStatistikk(visData)
 
   return (
-    <main style={{ minHeight: '100vh', background: tema.bg, padding: '20px 16px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s' }}>
+    <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 32px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 500, color: tema.tekst, margin: 0, letterSpacing: '-0.02em' }}>Spotsjef</h1>
-          <p style={{ fontSize: '13px', color: tema.subtekst, margin: '2px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: tema.accentGradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', boxShadow: tema.skygge, flexShrink: 0 }}>
+            ⚡
+          </div>
+          <div>
+            <h1 style={{ fontSize: '23px', fontWeight: 700, color: tema.tekst, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Spotsjef</h1>
+            <p style={{ fontSize: '12.5px', color: tema.subtekst, margin: '1px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
+          </div>
         </div>
-        <button onClick={() => setDarkMode(!darkMode)} style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s' }} aria-label="Bytt mellom lys og mørk modus">
+        <button onClick={() => setDarkMode(!darkMode)} style={{ width: '40px', height: '40px', borderRadius: '13px', border: `1px solid ${tema.border}`, background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', fontSize: '16px', boxShadow: tema.skygge, flexShrink: 0 }} aria-label="Bytt mellom lys og mørk modus">
           {darkMode ? '☀' : '☾'}
         </button>
       </div>
 
       {feil && (
-        <div style={{ background: '#f7e8e3', borderRadius: '14px', padding: '12px 16px', margin: '12px 0', color: '#a35a45', fontSize: '13px' }}>
+        <div style={{ background: darkMode ? 'rgba(218,138,122,0.13)' : '#f9eae5', border: `1px solid ${darkMode ? 'rgba(218,138,122,0.28)' : '#f0d6cd'}`, borderRadius: '14px', padding: '12px 16px', margin: '12px 0', color: darkMode ? '#e3a99c' : '#a35a45', fontSize: '13px', boxShadow: tema.skygge }}>
           {feil}
         </div>
       )}
@@ -209,7 +219,7 @@ export default function Home() {
       {aktivTab === 'idag' && (
         <>
         <RadKort rad={rad} tema={tema} />
-          <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               {(['I dag', 'I morgen'] as const).map((label, i) => {
                 const erValgt = (visIdag && i === 0) || (!visIdag && i === 1)
