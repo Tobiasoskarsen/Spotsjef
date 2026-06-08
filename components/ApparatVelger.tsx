@@ -1,4 +1,5 @@
 import { Apparat, Anbefaling } from '@/lib/types'
+import { APPARATER } from '@/lib/constants'
 import { Tema } from '@/lib/theme'
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
   egetApparat: { navn: string; watt: string; timer: string }
   onEndreEget: (felt: 'navn' | 'watt' | 'timer', verdi: string) => void
   onLeggTil: () => void
+  onSlett: (a: Apparat) => void
   delt: boolean
   onDel: () => void
   darkMode: boolean
@@ -19,7 +21,7 @@ type Props = {
 
 export default function ApparatVelger({
   alleApparater, valgtApparat, onVelg, anbefaling, visEgetSkjema, onToggleSkjema,
-  egetApparat, onEndreEget, onLeggTil, delt, onDel, darkMode, tema,
+  egetApparat, onEndreEget, onLeggTil, onSlett, delt, onDel, darkMode, tema,
 }: Props) {
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '10px 14px', borderRadius: '12px', border: 'none',
@@ -33,12 +35,20 @@ export default function ApparatVelger({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
         {alleApparater.map(a => {
           const valgt = valgtApparat.navn === a.navn
+          const erEget = !APPARATER.some(d => d.navn === a.navn)
           return (
-            <button key={a.navn} onClick={() => onVelg(a)} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: valgt ? `1.5px solid ${tema.accent}` : '1.5px solid transparent', cursor: 'pointer', transition: 'all 0.2s', background: valgt ? tema.accentBg : tema.inputBg, fontFamily: 'inherit' }}>
-              <div style={{ fontSize: '20px', marginBottom: '6px' }}>{a.ikon || '🔌'}</div>
-              <div style={{ fontSize: '13px', fontWeight: 500, color: valgt ? tema.pillTekst : tema.tekst }}>{a.navn}</div>
-              <div style={{ fontSize: '11px', color: tema.subtekst }}>{a.watt}W · {a.timer}t</div>
-            </button>
+            <div key={a.navn} style={{ position: 'relative' }}>
+              <button onClick={() => onVelg(a)} style={{ width: '100%', padding: '14px', borderRadius: '14px', textAlign: 'left', border: valgt ? `1.5px solid ${tema.accent}` : '1.5px solid transparent', cursor: 'pointer', transition: 'all 0.2s', background: valgt ? tema.accentBg : tema.inputBg, fontFamily: 'inherit' }}>
+                <div style={{ fontSize: '20px', marginBottom: '6px' }}>{a.ikon || '🔌'}</div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: valgt ? tema.pillTekst : tema.tekst }}>{a.navn}</div>
+                <div style={{ fontSize: '11px', color: tema.subtekst }}>{a.watt}W · {a.timer}t</div>
+              </button>
+              {erEget && (
+                <button onClick={() => onSlett(a)} aria-label={`Slett ${a.navn}`} title="Slett apparat" style={{ position: 'absolute', top: '8px', right: '8px', width: '22px', height: '22px', borderRadius: '7px', border: 'none', background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', fontSize: '13px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>
+                  ✕
+                </button>
+              )}
+            </div>
           )
         })}
         <button onClick={onToggleSkjema} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: `1.5px dashed ${tema.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
