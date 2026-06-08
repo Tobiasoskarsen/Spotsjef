@@ -17,7 +17,7 @@ import AiInnsikt from '@/components/AiInnsikt'
 import Alarm from '@/components/Alarm'
 import Historikk from '@/components/Historikk'
 import Kalkulator from '@/components/Kalkulator'
-import Tabs, { TabId } from '@/components/Tabs'
+import BunnMeny, { Side } from '@/components/BunnMeny'
 import { VaerTime, hentVaer } from '@/lib/vaer'
 import VaerKort from '@/components/VaerKort'
 
@@ -44,7 +44,7 @@ export default function Home() {
   const [aiInnsikt, setAiInnsikt] = useState('')
   const [lasterAI, setLasterAI] = useState(false)
   const [varslerAktivert, setVarslerAktivert] = useState(false)
-  const [aktivTab, setAktivTab] = useState<TabId>('idag')
+  const [side, setSide] = useState<Side>('hjem')
   const [frist, setFrist] = useState('')
   const [nettleie, setNettleie] = useState('')
   const [vaer, setVaer] = useState<VaerTime[]>([])
@@ -265,7 +265,7 @@ export default function Home() {
   const kjorNaaKostnad = visIdag ? kostnadForStart(visData, valgtApparat, new Date().getHours(), nettleieKr) : null
 
   return (
-    <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 32px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
+    <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 104px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FlytLogo size={44} />
@@ -285,28 +285,25 @@ export default function Home() {
         </div>
       )}
 
-      <PrisTicker
-        naavaerendePris={naavaerendePris}
-        animertPris={animertPris}
-        minPris={minPris}
-        maxPris={maxPris}
-        snittPris={snittPris}
-        spotNaa={spotNaa}
-        nettleieOre={nettleieOre}
-        zone={zone}
-        onZoneChange={setZone}
-        tema={tema}
-      />
-
-      <DagsOppsummering priser={priser} nettleieOre={nettleieOre} tema={tema} />
-
-      <PrisInnstillinger nettleie={nettleie} onEndre={setNettleie} tema={tema} />
-
-      <Tabs aktiv={aktivTab} onBytt={setAktivTab} tema={tema} />
-
-      {aktivTab === 'idag' && (
+      {side === 'hjem' && (
         <>
-        <RadKort rad={rad} tema={tema} />
+          <PrisTicker
+            naavaerendePris={naavaerendePris}
+            animertPris={animertPris}
+            minPris={minPris}
+            maxPris={maxPris}
+            snittPris={snittPris}
+            spotNaa={spotNaa}
+            nettleieOre={nettleieOre}
+            zone={zone}
+            onZoneChange={setZone}
+            tema={tema}
+          />
+
+          <DagsOppsummering priser={priser} nettleieOre={nettleieOre} tema={tema} />
+
+          <RadKort rad={rad} tema={tema} />
+
           <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               {(['I dag', 'I morgen'] as const).map((label, i) => {
@@ -330,8 +327,12 @@ export default function Home() {
             />
           </div>
 
-     <VaerKort vaer={vaer} laster={lasterVaer} tema={tema} />
+          <VaerKort vaer={vaer} laster={lasterVaer} tema={tema} />
+        </>
+      )}
 
+      {side === 'apparater' && (
+        <>
           <ApparatVelger
             alleApparater={alleApparater}
             valgtApparat={valgtApparat}
@@ -356,6 +357,16 @@ export default function Home() {
             tema={tema}
           />
 
+          <Kalkulator alleApparater={alleApparater} priser={priser} nettleie={nettleieKr} darkMode={darkMode} tema={tema} />
+        </>
+      )}
+
+      {side === 'historikk' && <Historikk historikk={historikk} tema={tema} />}
+
+      {side === 'mer' && (
+        <>
+          <PrisInnstillinger nettleie={nettleie} onEndre={setNettleie} tema={tema} />
+
           <AiInnsikt
             aiInnsikt={aiInnsikt}
             lasterAI={lasterAI}
@@ -377,15 +388,11 @@ export default function Home() {
         </>
       )}
 
-      {aktivTab === 'historikk' && <Historikk historikk={historikk} tema={tema} />}
-
-      {aktivTab === 'kalkulator' && (
-        <Kalkulator alleApparater={alleApparater} priser={priser} nettleie={nettleieKr} darkMode={darkMode} tema={tema} />
-      )}
-
       <p style={{ textAlign: 'center', fontSize: '11px', color: tema.subtekst, marginTop: '12px' }}>
         Priser fra hvakosterstrommen.no · Oppdateres daglig
       </p>
+
+      <BunnMeny aktiv={side} onBytt={setSide} tema={tema} />
     </main>
   )
 }
