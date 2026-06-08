@@ -30,7 +30,7 @@ export default function Home() {
   const [feil, setFeil] = useState('')
   const [visIdag, setVisIdag] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
-  const [egetApparat, setEgetApparat] = useState({ navn: '', watt: '', timer: '' })
+  const [egetApparat, setEgetApparat] = useState({ navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' })
   const [visEgetSkjema, setVisEgetSkjema] = useState(false)
   const [alleApparater, setAlleApparater] = useState<Apparat[]>(APPARATER)
   const [delt, setDelt] = useState(false)
@@ -146,13 +146,14 @@ export default function Home() {
       navn: egetApparat.navn,
       watt: parseInt(egetApparat.watt),
       timer: parseFloat(egetApparat.timer),
-      ikon: '🔌',
+      ikon: egetApparat.ikon || '🔌',
+      gangerPerUke: parseInt(egetApparat.gangerPerUke) || 7,
     }
     const oppdatert = [...alleApparater, nytt]
     setAlleApparater(oppdatert)
     lagreEgne(oppdatert)
     setValgtApparat(nytt)
-    setEgetApparat({ navn: '', watt: '', timer: '' })
+    setEgetApparat({ navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' })
     setVisEgetSkjema(false)
   }
 

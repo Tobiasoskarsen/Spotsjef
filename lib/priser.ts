@@ -111,7 +111,12 @@ export function prisStatistikk(data: Pris[]) {
   }
 }
 
-// Månedlig kostnad for et apparat ved gitt kWh-pris (NOK)
+// Månedlig kostnad for et apparat ved gitt kWh-pris (NOK).
+// Bruker apparatets faktiske bruksfrekvens (ganger per uke). Eldre apparater
+// uten frekvens antas brukt daglig (7/uke), som matcher gammel oppførsel.
 export function maanedskostnad(apparat: Apparat, prisPerKwh: number): number {
-  return (apparat.watt / 1000) * apparat.timer * 30 * prisPerKwh
+  const perUke = apparat.gangerPerUke ?? 7
+  const gangerPerMaaned = (perUke * 52) / 12 // ~4.33 uker per måned
+  const kwhPerGang = (apparat.watt / 1000) * apparat.timer
+  return kwhPerGang * gangerPerMaaned * prisPerKwh
 }

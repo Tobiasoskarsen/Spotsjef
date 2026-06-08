@@ -9,6 +9,7 @@ export type Apparat = {
   watt: number
   timer: number
   ikon?: string
+  gangerPerUke?: number // hvor ofte apparatet brukes – for riktig månedskostnad
 }
 
 export type Anbefaling = {

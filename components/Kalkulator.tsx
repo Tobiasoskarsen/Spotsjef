@@ -26,7 +26,7 @@ export default function Kalkulator({ alleApparater, priser, tema }: Props) {
   return (
     <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
       <h2 style={{ fontSize: '15px', fontWeight: 500, color: tema.tekst, margin: '0 0 6px' }}>Månedlig sparekalkulator</h2>
-      <p style={{ fontSize: '13px', color: tema.subtekst, margin: '0 0 20px' }}>Basert på alle apparatene dine og dagens priser</p>
+      <p style={{ fontSize: '13px', color: tema.subtekst, margin: '0 0 20px' }}>Basert på apparatene dine, hvor ofte du bruker dem, og dagens priser</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '20px' }}>
         {kort.map(k => (
@@ -41,7 +41,7 @@ export default function Kalkulator({ alleApparater, priser, tema }: Props) {
         <h3 style={{ fontSize: '14px', fontWeight: 500, color: tema.tekst, margin: '0 0 10px' }}>Dine apparater</h3>
         {alleApparater.map(a => (
           <div key={a.navn} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${tema.border}` }}>
-            <span style={{ fontSize: '13px', color: tema.tekst }}>{a.ikon || '🔌'} {a.navn}</span>
+            <span style={{ fontSize: '13px', color: tema.tekst }}>{a.ikon || '🔌'} {a.navn} <span style={{ color: tema.subtekst }}>· {a.gangerPerUke ?? 7}×/uke</span></span>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: '13px', color: '#c98a7a', textDecoration: 'line-through', marginRight: '8px' }}>{maanedskostnad(a, snittRaw).toFixed(0)} kr</span>
               <span style={{ fontSize: '13px', color: tema.accent, fontWeight: 500 }}>{maanedskostnad(a, billigRaw).toFixed(0)} kr</span>
