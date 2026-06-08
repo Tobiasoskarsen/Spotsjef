@@ -1,0 +1,34 @@
+SPOTSJEF – OPPRYDDET STRUKTUR
+==============================
+
+Slik legger du dette inn i prosjektet. Du jobber på "opprydding"-branchen,
+så main/live-versjonen er trygg uansett.
+
+NY MAPPESTRUKTUR (relativt til spotsjef/):
+
+  lib/
+    types.ts              <- alle typer
+    constants.ts          <- apparater + soner
+    theme.ts              <- farger for dark/light + getColor
+    priser.ts             <- all datalogikk (henting, beregning)
+    useAnimatedNumber.ts  <- animasjons-hook
+
+  components/
+    PrisTicker.tsx
+    PrisGraf.tsx
+    ApparatVelger.tsx
+    AiInnsikt.tsx
+    Alarm.tsx
+    Historikk.tsx
+    Kalkulator.tsx
+    Tabs.tsx
+
+  app/
+    page.tsx              <- ERSTATTER din gamle (511 -> 245 linjer)
+
+VIKTIG: "@/" betyr prosjektroten. Det funker fordi tsconfig.json
+allerede har paths: { "@/*": ["./*"] } (standard i create-next-app).
+
+ROUTENE (app/api/ai/route.ts og app/api/prices/route.ts) er uendret
+fra det du allerede har – du trenger ikke kopiere dem på nytt hvis de
+allerede ligger der. De er med her bare for fullstendighet.
