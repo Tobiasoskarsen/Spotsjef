@@ -1,4 +1,6 @@
 'use client'
+import { lagRad } from '@/lib/rad'
+import RadKort from '@/components/RadKort'
 import { useEffect, useState } from 'react'
 import { Pris, Apparat, Anbefaling, HistorikkPunkt } from '@/lib/types'
 import { APPARATER } from '@/lib/constants'
@@ -13,6 +15,9 @@ import Alarm from '@/components/Alarm'
 import Historikk from '@/components/Historikk'
 import Kalkulator from '@/components/Kalkulator'
 import Tabs, { TabId } from '@/components/Tabs'
+import { VaerTime, hentVaer } from '@/lib/vaer'
+import VaerKort from '@/components/VaerKort'
+
 
 export default function Home() {
   const [priser, setPriser] = useState<Pris[]>([])
@@ -35,6 +40,8 @@ export default function Home() {
   const [lasterAI, setLasterAI] = useState(false)
   const [varslerAktivert, setVarslerAktivert] = useState(false)
   const [aktivTab, setAktivTab] = useState<TabId>('idag')
+  const [vaer, setVaer] = useState<VaerTime[]>([])
+  const [lasterVaer, setLasterVaer] = useState(true)
 
   const tema = lagTema(darkMode)
   const naavaerendePris = priser[new Date().getHours()]?.pris ?? 0
@@ -62,6 +69,17 @@ export default function Home() {
       .finally(() => !avbrutt && setLaster(false))
     return () => { avbrutt = true }
   }, [zone])
+
+     useEffect(() => {
+       let avbrutt = false
+       setLasterVaer(true)
+       hentVaer(zone)
+         .then(v => { if (!avbrutt) setVaer(v) })
+         .finally(() => { if (!avbrutt) setLasterVaer(false) })
+       return () => { avbrutt = true }
+     }, [zone])
+
+  const rad = lagRad(priser, vaer)
 
   useEffect(() => {
     localStorage.setItem('dark', String(darkMode))
@@ -166,10 +184,11 @@ export default function Home() {
 
       {aktivTab === 'idag' && (
         <>
+        <RadKort rad={rad} tema={tema} />
           <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               {(['I dag', 'I morgen'] as const).map((label, i) => {
-                const erValgt = visIdag ? i === 0 : i === 1
+                const erValgt = (visIdag && i === 0) || (!visIdag && i === 1)
                 return (
                   <button key={label} onClick={() => setVisIdag(i === 0)} style={{ padding: '7px 16px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s', ...(erValgt ? { background: tema.accentBg, color: tema.pillTekst } : { background: tema.inputBg, color: tema.subtekst }) }}>
                     {label}
@@ -188,6 +207,8 @@ export default function Home() {
               tema={tema}
             />
           </div>
+
+     <VaerKort vaer={vaer} laster={lasterVaer} tema={tema} />
 
           <ApparatVelger
             alleApparater={alleApparater}

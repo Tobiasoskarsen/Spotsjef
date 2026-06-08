@@ -1,43 +1,48 @@
-SPOTSJEF – NYTT SKANDINAVISK DESIGN
+SPOTSJEF – SMARTE RÅD (vær + strøm)
 ====================================
 
-Lag en ny branch først, så live-siden er trygg mens du tester:
-  git checkout -b design
+En regelmotor som kombinerer vær og strøm til 3-4 treffsikre råd.
+Ingen AI, ingen kostnad – ren logikk på data du allerede henter.
 
-FILER SOM SKAL INN (relativt til spotsjef/):
+Lag branch:
+  git checkout -b rad
 
-  lib/theme.ts            <- ERSTATT (ny palett + getColorSterk)
-  components/*.tsx        <- ERSTATT alle 8
-  app/page.tsx            <- ERSTATT
-  app/layout.tsx          <- ERSTATT (legger til Figtree-font)
-  app/globals.css         <- ERSTATT (font + reset)
+NYE FILER (relativt til spotsjef/):
+  lib/rad.ts            <- regelmotoren (4 regler)
+  components/RadKort.tsx <- viser rådene
 
-UENDRET (trenger ikke kopieres på nytt, men er med for sikkerhets skyld):
-  lib/types.ts, lib/constants.ts, lib/priser.ts, lib/useAnimatedNumber.ts
+TO SMÅ ENDRINGER I app/page.tsx:
 
-VIKTIG OM layout.tsx:
-Din gamle layout.tsx kan ha hatt andre fonter (Geist) importert fra
-create-next-app. Den nye erstatter alt og bruker Figtree i stedet.
-Hvis du hadde tilpasninger i layout.tsx, sjekk dem mot den nye.
+1. Importer øverst:
+     import { lagRad } from '@/lib/rad'
+     import RadKort from '@/components/RadKort'
 
-VIKTIG OM globals.css:
-Den nye er minimal (font + reset). Hvis din gamle globals.css hadde
-Tailwind-direktiver (@tailwind ...) som du faktisk bruker, må de beholdes.
-Men denne appen styles med inline-styles, så Tailwind brukes neppe.
-Sjekk: hvis appen ser helt ustylet ut etter bytte, legg Tailwind-linjene
-tilbake øverst i globals.css.
+2. Beregn rådene (sammen med de andre utledede verdiene, f.eks.
+   rett før "return ("). Krever at du allerede har `vaer`-state
+   fra vær-steget:
+     const rad = lagRad(priser, vaer)
 
-FONTEN:
-Figtree lastes automatisk av Next.js via next/font/google – ingen
-ekstra installasjon trengs. Krever bare internett ved bygging.
+3. Vis kortet i "I dag"-fanen, gjerne ØVERST så det er det første
+   brukeren ser – rett etter <Tabs ...> eller først i idag-blokken:
+     <RadKort rad={rad} tema={tema} />
+
+JUSTERE REGLENE:
+Alle reglene ligger i lib/rad.ts, hver med en kommentar (REGEL 1-4).
+Du kan enkelt:
+  - endre terskler (f.eks. "billig" = under 80% av snitt)
+  - endre tekstene
+  - legge til egne regler (kopier mønsteret, gi den en prioritet)
+prioritet styrer rekkefølgen – høyere vises først, maks 4 vises.
 
 TEST:
-  npm run dev      (sjekk lys + mørk modus, alle faner)
-  npm run build    (fang type-feil før Vercel)
+  npm run dev
+  Rådene endrer seg med priser, vær og klokkeslett. For å se ulike
+  råd kan du bytte sone (annen pris + vær) eller teste på ulike
+  tider av døgnet.
 
-NÅR DU ER FORNØYD:
+NÅR FORNØYD:
   git add .
-  git commit -m "Nytt skandinavisk design"
+  git commit -m "Legg til smarte vaer+strom-rad"
   git checkout main
-  git merge design
+  git merge rad
   git push
