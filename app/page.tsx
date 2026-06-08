@@ -33,6 +33,8 @@ export default function Home() {
   const [darkMode, setDarkMode] = useState(false)
   const [egetApparat, setEgetApparat] = useState({ navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' })
   const [visEgetSkjema, setVisEgetSkjema] = useState(false)
+  const [redigererNavn, setRedigererNavn] = useState<string | null>(null)
+  const [skjemaFeil, setSkjemaFeil] = useState('')
   const [alleApparater, setAlleApparater] = useState<Apparat[]>(APPARATER)
   const [delt, setDelt] = useState(false)
   const [alarmGrense, setAlarmGrense] = useState('')
@@ -52,14 +54,28 @@ export default function Home() {
   useEffect(() => {
     setZone(localStorage.getItem('zone') || 'NO1')
     setDarkMode(localStorage.getItem('dark') === 'true')
-    const lagrede = localStorage.getItem('egneApparater')
-    if (lagrede) {
-      try {
-        const egne: Apparat[] = JSON.parse(lagrede)
-        if (Array.isArray(egne) && egne.length) setAlleApparater([...APPARATER, ...egne])
-      } catch {
-        // Ugyldig lagret data — ignorer og bruk standardlista
+    // Last inn brukerens apparatliste. Nytt format: HELE lista under 'apparater'
+    // (brukeren kan endre/slette alt). Eldre format ('egneApparater') hadde kun
+    // egne apparater i tillegg til standardlista – migrer det over.
+    try {
+      const lagretListe = localStorage.getItem('apparater')
+      if (lagretListe) {
+        const liste: Apparat[] = JSON.parse(lagretListe)
+        if (Array.isArray(liste) && liste.length) {
+          setAlleApparater(liste)
+          setValgtApparat(liste[0])
+        }
+      } else {
+        const gamle = localStorage.getItem('egneApparater')
+        const egne: Apparat[] = gamle ? JSON.parse(gamle) : []
+        if (Array.isArray(egne) && egne.length) {
+          const slått = [...APPARATER, ...egne]
+          setAlleApparater(slått)
+          localStorage.setItem('apparater', JSON.stringify(slått))
+        }
       }
+    } catch {
+      // Ugyldig lagret data — ignorer og bruk standardlista
     }
   }, [])
 
@@ -136,34 +152,85 @@ export default function Home() {
     setLasterAI(false)
   }
 
-  // Lagrer kun egendefinerte apparater (ikke standardlista) i localStorage
-  function lagreEgne(liste: Apparat[]) {
-    const egne = liste.filter(a => !APPARATER.some(d => d.navn === a.navn))
-    localStorage.setItem('egneApparater', JSON.stringify(egne))
+  // Lagrer hele apparatlista (brukerens egen) i localStorage
+  function lagreApparater(liste: Apparat[]) {
+    localStorage.setItem('apparater', JSON.stringify(liste))
   }
 
-  function leggTilApparat() {
-    if (!egetApparat.navn || !egetApparat.watt || !egetApparat.timer) return
-    const nytt: Apparat = {
-      navn: egetApparat.navn,
+  const tomtSkjema = { navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' }
+
+  // Åpner skjemaet for å redigere et eksisterende apparat (forhåndsutfylt)
+  function startRediger(a: Apparat) {
+    setEgetApparat({
+      navn: a.navn,
+      watt: String(a.watt),
+      timer: String(a.timer),
+      ikon: a.ikon || '🔌',
+      gangerPerUke: String(a.gangerPerUke ?? 7),
+    })
+    setRedigererNavn(a.navn)
+    setSkjemaFeil('')
+    setVisEgetSkjema(true)
+  }
+
+  // Åpner et tomt skjema for å legge til et nytt apparat
+  function startNyttApparat() {
+    setEgetApparat(tomtSkjema)
+    setRedigererNavn(null)
+    setSkjemaFeil('')
+    setVisEgetSkjema(true)
+  }
+
+  function avbrytSkjema() {
+    setEgetApparat(tomtSkjema)
+    setRedigererNavn(null)
+    setSkjemaFeil('')
+    setVisEgetSkjema(false)
+  }
+
+  // Legger til et nytt apparat, eller lagrer endringer hvis vi redigerer
+  function lagreApparat() {
+    if (!egetApparat.navn.trim() || !egetApparat.watt || !egetApparat.timer) {
+      setSkjemaFeil('Fyll inn navn, watt og timer.')
+      return
+    }
+    const navn = egetApparat.navn.trim()
+    // Navn brukes som id, så det må være unikt
+    if (alleApparater.some(a => a.navn === navn && a.navn !== redigererNavn)) {
+      setSkjemaFeil(`Du har allerede et apparat som heter «${navn}».`)
+      return
+    }
+    const apparat: Apparat = {
+      navn,
       watt: parseInt(egetApparat.watt),
       timer: parseFloat(egetApparat.timer),
       ikon: egetApparat.ikon || '🔌',
       gangerPerUke: parseInt(egetApparat.gangerPerUke) || 7,
     }
-    const oppdatert = [...alleApparater, nytt]
+    const oppdatert = redigererNavn
+      ? alleApparater.map(a => (a.navn === redigererNavn ? apparat : a))
+      : [...alleApparater, apparat]
     setAlleApparater(oppdatert)
-    lagreEgne(oppdatert)
-    setValgtApparat(nytt)
-    setEgetApparat({ navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' })
-    setVisEgetSkjema(false)
+    lagreApparater(oppdatert)
+    setValgtApparat(apparat)
+    avbrytSkjema()
   }
 
   function slettApparat(a: Apparat) {
+    if (alleApparater.length <= 1) return // behold alltid minst ett apparat
     const oppdatert = alleApparater.filter(x => x.navn !== a.navn)
     setAlleApparater(oppdatert)
-    lagreEgne(oppdatert)
-    if (valgtApparat.navn === a.navn) setValgtApparat(APPARATER[0])
+    lagreApparater(oppdatert)
+    if (valgtApparat.navn === a.navn) setValgtApparat(oppdatert[0])
+    if (redigererNavn === a.navn) avbrytSkjema()
+  }
+
+  // Gjenoppretter standardlista (sikkerhetsnett hvis man har slettet for mye)
+  function tilbakestillApparater() {
+    setAlleApparater(APPARATER)
+    lagreApparater(APPARATER)
+    setValgtApparat(APPARATER[0])
+    avbrytSkjema()
   }
 
   function delAnbefaling() {
@@ -257,11 +324,16 @@ export default function Home() {
             onVelg={setValgtApparat}
             anbefaling={anbefaling}
             visEgetSkjema={visEgetSkjema}
-            onToggleSkjema={() => setVisEgetSkjema(!visEgetSkjema)}
+            onToggleSkjema={startNyttApparat}
             egetApparat={egetApparat}
             onEndreEget={(felt, verdi) => setEgetApparat({ ...egetApparat, [felt]: verdi })}
-            onLeggTil={leggTilApparat}
+            onLagre={lagreApparat}
+            onRediger={startRediger}
             onSlett={slettApparat}
+            redigererNavn={redigererNavn}
+            onAvbryt={avbrytSkjema}
+            onTilbakestill={tilbakestillApparater}
+            skjemaFeil={skjemaFeil}
             delt={delt}
             onDel={delAnbefaling}
             frist={frist}
