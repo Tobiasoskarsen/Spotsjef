@@ -19,7 +19,7 @@ export default function Kalkulator({ alleApparater, priser, tema }: Props) {
 
   const kort = [
     { label: 'Uten optimering', verdi: `${vanligMaaned} kr`, farge: '#c98a7a' },
-    { label: 'Med Spotsjef', verdi: `${maanedEstimat} kr`, farge: tema.accent },
+    { label: 'Med Flyt', verdi: `${maanedEstimat} kr`, farge: tema.accent },
     { label: 'Du sparer', verdi: `${sparing} kr`, farge: tema.tekst },
   ]
 

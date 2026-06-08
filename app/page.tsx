@@ -9,6 +9,7 @@ import { useAnimatedNumber } from '@/lib/useAnimatedNumber'
 import { hentAltData, beregnAnbefaling, prisStatistikk, kostnadForStart } from '@/lib/priser'
 import PrisTicker from '@/components/PrisTicker'
 import DagsOppsummering from '@/components/DagsOppsummering'
+import FlytLogo from '@/components/FlytLogo'
 import PrisGraf from '@/components/PrisGraf'
 import ApparatVelger from '@/components/ApparatVelger'
 import AiInnsikt from '@/components/AiInnsikt'
@@ -30,7 +31,7 @@ export default function Home() {
   const [laster, setLaster] = useState(true)
   const [feil, setFeil] = useState('')
   const [visIdag, setVisIdag] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(true)
   const [egetApparat, setEgetApparat] = useState({ navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' })
   const [visEgetSkjema, setVisEgetSkjema] = useState(false)
   const [redigererNavn, setRedigererNavn] = useState<string | null>(null)
@@ -53,7 +54,8 @@ export default function Home() {
 
   useEffect(() => {
     setZone(localStorage.getItem('zone') || 'NO1')
-    setDarkMode(localStorage.getItem('dark') === 'true')
+    // Mørk modus er standard (matcher Flyt-logoen); kun eksplisitt 'false' gir lys
+    setDarkMode(localStorage.getItem('dark') !== 'false')
     // Last inn brukerens apparatliste. Nytt format: HELE lista under 'apparater'
     // (brukeren kan endre/slette alt). Eldre format ('egneApparater') hadde kun
     // egne apparater i tillegg til standardlista – migrer det over.
@@ -126,7 +128,7 @@ export default function Home() {
     if (!alarmAktiv || priser.length === 0 || !alarmGrense) return
     const naa = priser[new Date().getHours()]?.pris ?? 0
     if (naa < parseFloat(alarmGrense) && Notification.permission === 'granted') {
-      new Notification('Spotsjef — billig strøm nå!', {
+      new Notification('Flyt — billig strøm nå!', {
         body: `Prisen er nå ${naa.toFixed(1)} øre/kWh — under grensen din på ${alarmGrense} øre`,
       })
     }
@@ -236,7 +238,7 @@ export default function Home() {
   function delAnbefaling() {
     if (!anbefaling) return
     navigator.clipboard.writeText(
-      `Spotsjef: Kjør ${valgtApparat.navn} kl. ${anbefaling.startTime}–${anbefaling.sluttTime} — snitt ${anbefaling.snittPris} øre/kWh, ca. ${anbefaling.kostnad} kr`
+      `Flyt: Kjør ${valgtApparat.navn} kl. ${anbefaling.startTime}–${anbefaling.sluttTime} — snitt ${anbefaling.snittPris} øre/kWh, ca. ${anbefaling.kostnad} kr`
     )
     setDelt(true)
     setTimeout(() => setDelt(false), 2000)
@@ -255,12 +257,10 @@ export default function Home() {
   return (
     <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 32px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: tema.accentGradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', boxShadow: tema.skygge, flexShrink: 0 }}>
-            ⚡
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <FlytLogo size={44} />
           <div>
-            <h1 style={{ fontSize: '23px', fontWeight: 700, color: tema.tekst, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Spotsjef</h1>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, color: tema.tekst, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Flyt</h1>
             <p style={{ fontSize: '12.5px', color: tema.subtekst, margin: '1px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
           </div>
         </div>

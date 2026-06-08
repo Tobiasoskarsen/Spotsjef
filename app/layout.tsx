@@ -9,8 +9,8 @@ const figtree = Figtree({
 })
 
 export const metadata: Metadata = {
-  title: 'Spotsjef — finn billigste strømtid',
-  description: 'Se norske strømpriser time for time og finn den billigste tiden å bruke strøm.',
+  title: 'Flyt — finn billigste strømtid',
+  description: 'Se norske strømpriser time for time og finn den billigste tiden å bruke strøm med Flyt.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
