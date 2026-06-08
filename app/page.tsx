@@ -33,7 +33,7 @@ function useAnimatedNumber(target: number, duration = 600) {
       if (progress < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [target])
   return display
 }
