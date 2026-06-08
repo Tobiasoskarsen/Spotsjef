@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Pris, Apparat, Anbefaling } from '@/lib/types'
-import { Tema, getColor } from '@/lib/theme'
+import { Tema, getColor, getColorSterk } from '@/lib/theme'
 
 type Props = {
   data: Pris[]
@@ -23,20 +23,21 @@ export default function PrisGraf({ data, minPris, maxPris, snittPris, anbefaling
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px', padding: '0 4px' }}>
-        <span style={{ color: '#22c55e', fontWeight: 500 }}>Min: {minPris} øre</span>
-        <span style={{ color: tema.subtekst }}>Snitt: {snittPris} øre</span>
-        <span style={{ color: '#ef4444', fontWeight: 500 }}>Maks: {maxPris} øre</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '14px', padding: '0 4px' }}>
+        <span style={{ color: getColorSterk(minPris, minPris, maxPris) }}>Min {minPris} øre</span>
+        <span style={{ color: tema.subtekst }}>Snitt {snittPris} øre</span>
+        <span style={{ color: getColorSterk(maxPris, minPris, maxPris) }}>Maks {maxPris} øre</span>
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 4, right: 4, left: -15, bottom: 0 }}>
-          <XAxis dataKey="time" tick={{ fontSize: 10, fill: tema.subtekst }} interval={2} />
-          <YAxis tick={{ fontSize: 10, fill: tema.subtekst }} domain={['auto', 'auto']} />
-          <Tooltip formatter={(v) => [`${v} øre/kWh`]} contentStyle={{ background: tema.cardBg, border: `1px solid ${tema.border}`, borderRadius: '8px', fontSize: '12px', color: tema.tekst }} />
-          <Bar dataKey="pris" radius={[4, 4, 0, 0]}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={getColor(entry.pris, minPris, maxPris)} opacity={anbefaling && i >= anbefaling.startIdx && i < anbefaling.startIdx + Math.ceil(valgtApparat.timer) ? 1 : 0.7} />
-            ))}
+          <XAxis dataKey="time" tick={{ fontSize: 10, fill: tema.subtekst }} interval={2} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: tema.subtekst }} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
+          <Tooltip formatter={(v) => [`${v} øre/kWh`]} contentStyle={{ background: tema.cardBg, border: 'none', borderRadius: '12px', fontSize: '12px', color: tema.tekst, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+          <Bar dataKey="pris" radius={[5, 5, 0, 0]}>
+            {data.map((entry, i) => {
+              const iVindu = anbefaling && i >= anbefaling.startIdx && i < anbefaling.startIdx + Math.ceil(valgtApparat.timer)
+              return <Cell key={i} fill={getColor(entry.pris, minPris, maxPris)} opacity={iVindu ? 1 : 0.55} />
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

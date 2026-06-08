@@ -9,9 +9,9 @@ type Props = {
 }
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'idag', label: '📊 I dag' },
-  { id: 'historikk', label: '📈 Historikk' },
-  { id: 'kalkulator', label: '🧮 Kalkulator' },
+  { id: 'idag', label: 'I dag' },
+  { id: 'historikk', label: 'Historikk' },
+  { id: 'kalkulator', label: 'Kalkulator' },
 ]
 
 export default function Tabs({ aktiv, onBytt, tema }: Props) {
@@ -20,7 +20,7 @@ export default function Tabs({ aktiv, onBytt, tema }: Props) {
       {TABS.map(tab => {
         const erAktiv = aktiv === tab.id
         return (
-          <button key={tab.id} onClick={() => onBytt(tab.id)} style={{ flex: 1, padding: '8px', borderRadius: '10px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s', ...(erAktiv ? { background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' } : { background: 'transparent', color: tema.subtekst, borderColor: tema.border }) }}>
+          <button key={tab.id} onClick={() => onBytt(tab.id)} style={{ flex: 1, padding: '10px', borderRadius: '14px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s ease', ...(erAktiv ? { background: tema.tekst, color: tema.cardBg } : { background: tema.cardBg, color: tema.subtekst }) }}>
             {tab.label}
           </button>
         )

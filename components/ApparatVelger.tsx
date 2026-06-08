@@ -22,50 +22,51 @@ export default function ApparatVelger({
   egetApparat, onEndreEget, onLeggTil, delt, onDel, darkMode, tema,
 }: Props) {
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${tema.border}`,
-    background: tema.cardBg, color: tema.tekst, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+    width: '100%', padding: '10px 14px', borderRadius: '12px', border: 'none',
+    background: tema.cardBg, color: tema.tekst, fontSize: '14px', outline: 'none',
+    boxSizing: 'border-box', fontFamily: 'inherit',
   }
 
   return (
-    <div style={{ background: tema.cardBg, border: `1px solid ${tema.border}`, borderRadius: '16px', padding: '20px', marginBottom: '16px' }}>
-      <h2 style={{ fontSize: '16px', fontWeight: 600, color: tema.tekst, margin: '0 0 12px' }}>Når bør jeg kjøre?</h2>
+    <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
+      <h2 style={{ fontSize: '15px', fontWeight: 500, color: tema.tekst, margin: '0 0 14px' }}>Når bør jeg kjøre?</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
         {alleApparater.map(a => {
           const valgt = valgtApparat.navn === a.navn
           return (
-            <button key={a.navn} onClick={() => onVelg(a)} style={{ padding: '12px', borderRadius: '12px', textAlign: 'left', border: '1px solid', cursor: 'pointer', transition: 'all 0.15s', ...(valgt ? { borderColor: '#3b82f6', background: darkMode ? '#1e3a5f' : '#eff6ff' } : { borderColor: tema.border, background: tema.cardBg }) }}>
-              <div style={{ fontSize: '20px', marginBottom: '4px' }}>{a.ikon || '🔌'}</div>
-              <div style={{ fontSize: '13px', fontWeight: 500, color: valgt ? (darkMode ? '#93c5fd' : '#1d4ed8') : tema.tekst }}>{a.navn}</div>
+            <button key={a.navn} onClick={() => onVelg(a)} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: valgt ? `1.5px solid ${tema.accent}` : '1.5px solid transparent', cursor: 'pointer', transition: 'all 0.2s', background: valgt ? tema.accentBg : tema.inputBg, fontFamily: 'inherit' }}>
+              <div style={{ fontSize: '20px', marginBottom: '6px' }}>{a.ikon || '🔌'}</div>
+              <div style={{ fontSize: '13px', fontWeight: 500, color: valgt ? tema.pillTekst : tema.tekst }}>{a.navn}</div>
               <div style={{ fontSize: '11px', color: tema.subtekst }}>{a.watt}W · {a.timer}t</div>
             </button>
           )
         })}
-        <button onClick={onToggleSkjema} style={{ padding: '12px', borderRadius: '12px', textAlign: 'left', border: `1px dashed ${tema.border}`, background: 'transparent', cursor: 'pointer' }}>
-          <div style={{ fontSize: '20px', marginBottom: '4px' }}>➕</div>
+        <button onClick={onToggleSkjema} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: `1.5px dashed ${tema.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <div style={{ fontSize: '20px', marginBottom: '6px', color: tema.subtekst }}>+</div>
           <div style={{ fontSize: '13px', fontWeight: 500, color: tema.subtekst }}>Legg til</div>
           <div style={{ fontSize: '11px', color: tema.subtekst }}>Eget apparat</div>
         </button>
       </div>
 
       {visEgetSkjema && (
-        <div style={{ background: tema.inputBg, borderRadius: '12px', padding: '16px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: tema.inputBg, borderRadius: '14px', padding: '16px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <input style={inputStyle} placeholder="Navn (f.eks. Badstue)" value={egetApparat.navn} onChange={e => onEndreEget('navn', e.target.value)} />
           <input style={inputStyle} placeholder="Watt (f.eks. 3000)" type="number" value={egetApparat.watt} onChange={e => onEndreEget('watt', e.target.value)} />
           <input style={inputStyle} placeholder="Timer (f.eks. 1.5)" type="number" step="0.5" value={egetApparat.timer} onChange={e => onEndreEget('timer', e.target.value)} />
-          <button onClick={onLeggTil} style={{ padding: '10px', borderRadius: '8px', background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}>Legg til</button>
+          <button onClick={onLeggTil} style={{ padding: '11px', borderRadius: '12px', background: tema.tekst, color: tema.cardBg, border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500, fontFamily: 'inherit' }}>Legg til</button>
         </div>
       )}
 
       {anbefaling && (
-        <div style={{ background: darkMode ? '#052e16' : '#f0fdf4', border: `1px solid ${darkMode ? '#166534' : '#86efac'}`, borderRadius: '12px', padding: '16px' }}>
-          <p style={{ color: darkMode ? '#86efac' : '#166534', fontWeight: 600, margin: '0 0 4px', fontSize: '15px' }}>
+        <div style={{ background: tema.accentBg, borderRadius: '14px', padding: '16px' }}>
+          <p style={{ color: tema.pillTekst, fontWeight: 500, margin: '0 0 4px', fontSize: '14px' }}>
             {valgtApparat.ikon} Kjør {valgtApparat.navn} kl. {anbefaling.startTime}–{anbefaling.sluttTime}
           </p>
-          <p style={{ color: darkMode ? '#4ade80' : '#16a34a', fontSize: '13px', margin: '0 0 12px' }}>
+          <p style={{ color: tema.accent, fontSize: '12px', margin: '0 0 12px' }}>
             Snitt {anbefaling.snittPris} øre/kWh · estimert kostnad {anbefaling.kostnad} kr
           </p>
-          <button onClick={onDel} style={{ padding: '8px 16px', borderRadius: '8px', background: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px' }}>
-            {delt ? '✓ Kopiert!' : '📋 Del anbefaling'}
+          <button onClick={onDel} style={{ padding: '8px 16px', borderRadius: '12px', background: tema.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit' }}>
+            {delt ? 'Kopiert!' : 'Del anbefaling'}
           </button>
         </div>
       )}

@@ -1,5 +1,12 @@
 import { Pris, Apparat, Anbefaling, ApiPris } from './types'
 
+const MVA = 0.25
+
+// NO4 (Nord-Norge) er fritatt for mva. Alle andre soner får 25% mva.
+function mvaFaktor(zone: string): number {
+  return zone === 'NO4' ? 1 : 1 + MVA
+}
+
 // Formaterer en dato til API-format: YYYY/MM-DD
 export function formatDato(d: Date): string {
   const y = d.getFullYear()
@@ -8,20 +15,24 @@ export function formatDato(d: Date): string {
   return `${y}/${m}-${day}`
 }
 
-// Gjør om rådata fra API til vårt interne Pris-format
-export function formaterPriser(data: ApiPris[]): Pris[] {
-  return data.map(p => ({
-    time: new Date(p.time_start).getHours() + ':00',
-    pris: parseFloat((p.NOK_per_kWh * 100).toFixed(1)),
-    raw: p.NOK_per_kWh,
-  }))
+// Gjør om rådata fra API til vårt interne Pris-format (med mva lagt på)
+export function formaterPriser(data: ApiPris[], zone: string): Pris[] {
+  const faktor = mvaFaktor(zone)
+  return data.map(p => {
+    const medMva = p.NOK_per_kWh * faktor
+    return {
+      time: new Date(p.time_start).getHours() + ':00',
+      pris: parseFloat((medMva * 100).toFixed(1)),
+      raw: medMva,
+    }
+  })
 }
 
 // Henter priser for én dato/sone via vår egen API-route
 async function hentDag(zone: string, dato: Date): Promise<Pris[]> {
   const res = await fetch(`/api/prices?zone=${zone}&date=${formatDato(dato)}`)
   const data = await res.json()
-  return Array.isArray(data) ? formaterPriser(data) : []
+  return Array.isArray(data) ? formaterPriser(data, zone) : []
 }
 
 export type AltData = {
@@ -35,7 +46,6 @@ export async function hentAltData(zone: string): Promise<AltData> {
   const now = new Date()
   const imorgen = new Date(now.getTime() + 86400000)
 
-  // De 6 dagene før i dag (for historikk-grafen)
   const historikkDatoer = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now)
     d.setDate(d.getDate() - (i + 1))

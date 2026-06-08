@@ -1,34 +1,43 @@
-SPOTSJEF – OPPRYDDET STRUKTUR
-==============================
+SPOTSJEF – NYTT SKANDINAVISK DESIGN
+====================================
 
-Slik legger du dette inn i prosjektet. Du jobber på "opprydding"-branchen,
-så main/live-versjonen er trygg uansett.
+Lag en ny branch først, så live-siden er trygg mens du tester:
+  git checkout -b design
 
-NY MAPPESTRUKTUR (relativt til spotsjef/):
+FILER SOM SKAL INN (relativt til spotsjef/):
 
-  lib/
-    types.ts              <- alle typer
-    constants.ts          <- apparater + soner
-    theme.ts              <- farger for dark/light + getColor
-    priser.ts             <- all datalogikk (henting, beregning)
-    useAnimatedNumber.ts  <- animasjons-hook
+  lib/theme.ts            <- ERSTATT (ny palett + getColorSterk)
+  components/*.tsx        <- ERSTATT alle 8
+  app/page.tsx            <- ERSTATT
+  app/layout.tsx          <- ERSTATT (legger til Figtree-font)
+  app/globals.css         <- ERSTATT (font + reset)
 
-  components/
-    PrisTicker.tsx
-    PrisGraf.tsx
-    ApparatVelger.tsx
-    AiInnsikt.tsx
-    Alarm.tsx
-    Historikk.tsx
-    Kalkulator.tsx
-    Tabs.tsx
+UENDRET (trenger ikke kopieres på nytt, men er med for sikkerhets skyld):
+  lib/types.ts, lib/constants.ts, lib/priser.ts, lib/useAnimatedNumber.ts
 
-  app/
-    page.tsx              <- ERSTATTER din gamle (511 -> 245 linjer)
+VIKTIG OM layout.tsx:
+Din gamle layout.tsx kan ha hatt andre fonter (Geist) importert fra
+create-next-app. Den nye erstatter alt og bruker Figtree i stedet.
+Hvis du hadde tilpasninger i layout.tsx, sjekk dem mot den nye.
 
-VIKTIG: "@/" betyr prosjektroten. Det funker fordi tsconfig.json
-allerede har paths: { "@/*": ["./*"] } (standard i create-next-app).
+VIKTIG OM globals.css:
+Den nye er minimal (font + reset). Hvis din gamle globals.css hadde
+Tailwind-direktiver (@tailwind ...) som du faktisk bruker, må de beholdes.
+Men denne appen styles med inline-styles, så Tailwind brukes neppe.
+Sjekk: hvis appen ser helt ustylet ut etter bytte, legg Tailwind-linjene
+tilbake øverst i globals.css.
 
-ROUTENE (app/api/ai/route.ts og app/api/prices/route.ts) er uendret
-fra det du allerede har – du trenger ikke kopiere dem på nytt hvis de
-allerede ligger der. De er med her bare for fullstendighet.
+FONTEN:
+Figtree lastes automatisk av Next.js via next/font/google – ingen
+ekstra installasjon trengs. Krever bare internett ved bygging.
+
+TEST:
+  npm run dev      (sjekk lys + mørk modus, alle faner)
+  npm run build    (fang type-feil før Vercel)
+
+NÅR DU ER FORNØYD:
+  git add .
+  git commit -m "Nytt skandinavisk design"
+  git checkout main
+  git merge design
+  git push

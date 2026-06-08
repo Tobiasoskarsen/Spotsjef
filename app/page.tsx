@@ -40,13 +40,11 @@ export default function Home() {
   const naavaerendePris = priser[new Date().getHours()]?.pris ?? 0
   const animertPris = useAnimatedNumber(naavaerendePris)
 
-  // Last lagrede innstillinger
   useEffect(() => {
     setZone(localStorage.getItem('zone') || 'NO1')
     setDarkMode(localStorage.getItem('dark') === 'true')
   }, [])
 
-  // Hent data når sone endres
   useEffect(() => {
     localStorage.setItem('zone', zone)
     let avbrutt = false
@@ -69,18 +67,16 @@ export default function Home() {
     localStorage.setItem('dark', String(darkMode))
   }, [darkMode])
 
-  // Beregn anbefaling når data eller apparat endres
   useEffect(() => {
     const data = visIdag ? priser : morgendagPriser
     setAnbefaling(beregnAnbefaling(data, valgtApparat))
   }, [priser, morgendagPriser, valgtApparat, visIdag])
 
-  // Sjekk alarm
   useEffect(() => {
     if (!alarmAktiv || priser.length === 0 || !alarmGrense) return
     const naa = priser[new Date().getHours()]?.pris ?? 0
     if (naa < parseFloat(alarmGrense) && Notification.permission === 'granted') {
-      new Notification('⚡ Spotsjef — billig strøm nå!', {
+      new Notification('Spotsjef — billig strøm nå!', {
         body: `Prisen er nå ${naa.toFixed(1)} øre/kWh — under grensen din på ${alarmGrense} øre`,
       })
     }
@@ -123,7 +119,7 @@ export default function Home() {
   function delAnbefaling() {
     if (!anbefaling) return
     navigator.clipboard.writeText(
-      `⚡ Spotsjef: Kjør ${valgtApparat.navn} kl. ${anbefaling.startTime}–${anbefaling.sluttTime} — snitt ${anbefaling.snittPris} øre/kWh, ca. ${anbefaling.kostnad} kr`
+      `Spotsjef: Kjør ${valgtApparat.navn} kl. ${anbefaling.startTime}–${anbefaling.sluttTime} — snitt ${anbefaling.snittPris} øre/kWh, ca. ${anbefaling.kostnad} kr`
     )
     setDelt(true)
     setTimeout(() => setDelt(false), 2000)
@@ -138,19 +134,19 @@ export default function Home() {
   const { min: minPris, max: maxPris, snitt: snittPris } = prisStatistikk(visData)
 
   return (
-    <main style={{ minHeight: '100vh', background: tema.bg, padding: '16px', maxWidth: '680px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', transition: 'background 0.3s' }}>
+    <main style={{ minHeight: '100vh', background: tema.bg, padding: '20px 16px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: tema.tekst, margin: 0 }}>⚡ Spotsjef</h1>
-          <p style={{ fontSize: '14px', color: tema.subtekst, margin: '2px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 500, color: tema.tekst, margin: 0, letterSpacing: '-0.02em' }}>Spotsjef</h1>
+          <p style={{ fontSize: '13px', color: tema.subtekst, margin: '2px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
         </div>
-        <button onClick={() => setDarkMode(!darkMode)} style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${tema.border}`, background: tema.cardBg, color: tema.tekst, cursor: 'pointer', fontSize: '14px' }}>
-          {darkMode ? '☀️' : '🌙'}
+        <button onClick={() => setDarkMode(!darkMode)} style={{ width: '40px', height: '40px', borderRadius: '12px', border: 'none', background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s' }} aria-label="Bytt mellom lys og mørk modus">
+          {darkMode ? '☀' : '☾'}
         </button>
       </div>
 
       {feil && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', margin: '12px 0', color: '#b91c1c', fontSize: '13px' }}>
+        <div style={{ background: '#f7e8e3', borderRadius: '14px', padding: '12px 16px', margin: '12px 0', color: '#a35a45', fontSize: '13px' }}>
           {feil}
         </div>
       )}
@@ -170,12 +166,12 @@ export default function Home() {
 
       {aktivTab === 'idag' && (
         <>
-          <div style={{ background: tema.cardBg, border: `1px solid ${tema.border}`, borderRadius: '16px', padding: '20px', marginBottom: '16px' }}>
+          <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               {(['I dag', 'I morgen'] as const).map((label, i) => {
                 const erValgt = visIdag ? i === 0 : i === 1
                 return (
-                  <button key={label} onClick={() => setVisIdag(i === 0)} style={{ padding: '6px 16px', borderRadius: '8px', border: '1px solid', cursor: 'pointer', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s', ...(erValgt ? { background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' } : { background: 'transparent', color: tema.subtekst, borderColor: tema.border }) }}>
+                  <button key={label} onClick={() => setVisIdag(i === 0)} style={{ padding: '7px 16px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s', ...(erValgt ? { background: tema.accentBg, color: tema.pillTekst } : { background: tema.inputBg, color: tema.subtekst }) }}>
                     {label}
                   </button>
                 )
@@ -237,7 +233,7 @@ export default function Home() {
         <Kalkulator alleApparater={alleApparater} priser={priser} darkMode={darkMode} tema={tema} />
       )}
 
-      <p style={{ textAlign: 'center', fontSize: '11px', color: tema.subtekst, marginTop: '8px' }}>
+      <p style={{ textAlign: 'center', fontSize: '11px', color: tema.subtekst, marginTop: '12px' }}>
         Priser fra hvakosterstrommen.no · Oppdateres daglig
       </p>
     </main>
