@@ -33,7 +33,6 @@ function useAnimatedNumber(target: number, duration = 600) {
       if (progress < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
-    
   }, [target])
   return display
 }
@@ -347,7 +346,7 @@ export default function Home() {
                   <BarChart data={visData} margin={{ top: 4, right: 4, left: -15, bottom: 0 }}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: subtekst }} interval={2} />
                     <YAxis tick={{ fontSize: 10, fill: subtekst }} domain={['auto', 'auto']} />
-                    <Tooltip formatter={(v: number) => [`${v} øre/kWh`]} contentStyle={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '8px', fontSize: '12px', color: tekst }} />
+                    <Tooltip formatter={(v) => [`${v} øre/kWh`]} contentStyle={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '8px', fontSize: '12px', color: tekst }} />
                     <Bar dataKey="pris" radius={[4, 4, 0, 0]}>
                       {visData.map((entry, i) => (
                         <Cell key={i} fill={getColor(entry.pris, minPris, maxPris)} opacity={anbefaling && i >= anbefaling.startIdx && i < anbefaling.startIdx + Math.ceil(valgtApparat.timer) ? 1 : 0.7} />
@@ -455,7 +454,7 @@ export default function Home() {
               <LineChart data={historikk} margin={{ top: 4, right: 4, left: -15, bottom: 0 }}>
                 <XAxis dataKey="dato" tick={{ fontSize: 11, fill: subtekst }} />
                 <YAxis tick={{ fontSize: 11, fill: subtekst }} domain={['auto', 'auto']} />
-                <Tooltip formatter={(v: number) => [`${v} øre/kWh`]} contentStyle={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '8px', fontSize: '12px', color: tekst }} />
+                <Tooltip formatter={(v) => [`${v} øre/kWh`]} contentStyle={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '8px', fontSize: '12px', color: tekst }} />
                 <Line type="monotone" dataKey="snitt" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
