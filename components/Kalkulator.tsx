@@ -5,16 +5,17 @@ import { maanedskostnad } from '@/lib/priser'
 type Props = {
   alleApparater: Apparat[]
   priser: Pris[]
+  nettleie: number // kr/kWh
   darkMode: boolean
   tema: Tema
 }
 
-export default function Kalkulator({ alleApparater, priser, tema }: Props) {
+export default function Kalkulator({ alleApparater, priser, nettleie, tema }: Props) {
   const billigRaw = priser.length ? Math.min(...priser.map(p => p.raw)) : 0.3
   const snittRaw = priser.length ? priser.reduce((s, p) => s + p.raw, 0) / priser.length : 0.8
 
-  const vanligMaaned = alleApparater.reduce((sum, a) => sum + maanedskostnad(a, snittRaw), 0).toFixed(0)
-  const maanedEstimat = alleApparater.reduce((sum, a) => sum + maanedskostnad(a, billigRaw), 0).toFixed(0)
+  const vanligMaaned = alleApparater.reduce((sum, a) => sum + maanedskostnad(a, snittRaw, nettleie), 0).toFixed(0)
+  const maanedEstimat = alleApparater.reduce((sum, a) => sum + maanedskostnad(a, billigRaw, nettleie), 0).toFixed(0)
   const sparing = (parseFloat(vanligMaaned) - parseFloat(maanedEstimat)).toFixed(0)
 
   const kort = [
@@ -43,8 +44,8 @@ export default function Kalkulator({ alleApparater, priser, tema }: Props) {
           <div key={a.navn} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `1px solid ${tema.border}` }}>
             <span style={{ fontSize: '13px', color: tema.tekst }}>{a.ikon || '🔌'} {a.navn} <span style={{ color: tema.subtekst }}>· {a.gangerPerUke ?? 7}×/uke</span></span>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: '13px', color: '#c98a7a', textDecoration: 'line-through', marginRight: '8px' }}>{maanedskostnad(a, snittRaw).toFixed(0)} kr</span>
-              <span style={{ fontSize: '13px', color: tema.accent, fontWeight: 500 }}>{maanedskostnad(a, billigRaw).toFixed(0)} kr</span>
+              <span style={{ fontSize: '13px', color: '#c98a7a', textDecoration: 'line-through', marginRight: '8px' }}>{maanedskostnad(a, snittRaw, nettleie).toFixed(0)} kr</span>
+              <span style={{ fontSize: '13px', color: tema.accent, fontWeight: 500 }}>{maanedskostnad(a, billigRaw, nettleie).toFixed(0)} kr</span>
             </div>
           </div>
         ))}

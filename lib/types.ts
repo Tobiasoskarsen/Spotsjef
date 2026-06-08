@@ -1,7 +1,8 @@
 export type Pris = {
   time: string
-  pris: number // øre/kWh
-  raw: number // NOK/kWh (rådata fra API)
+  pris: number // øre/kWh etter strømstøtte (inkl. mva)
+  raw: number // NOK/kWh etter strømstøtte (inkl. mva)
+  spot: number // øre/kWh før strømstøtte (inkl. mva) – for visning
 }
 
 export type Apparat = {

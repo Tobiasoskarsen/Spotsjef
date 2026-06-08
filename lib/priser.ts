@@ -7,6 +7,18 @@ function mvaFaktor(zone: string): number {
   return zone === 'NO4' ? 1 : 1 + MVA
 }
 
+// Strømstøtte (strømstønad): staten dekker en andel av spotprisen over en
+// terskel, beregnet time for time. Terskel i kr/kWh ekskl. mva.
+// Juster disse hvis ordningen endres.
+export const STOTTE_TERSKEL = 0.70
+export const STOTTE_DEKNING = 0.90
+
+export function stromstotte(spotEksklMva: number, zone: string): number {
+  if (spotEksklMva <= STOTTE_TERSKEL) return 0
+  // Støtten gis inkl. mva for husholdninger
+  return (spotEksklMva - STOTTE_TERSKEL) * STOTTE_DEKNING * mvaFaktor(zone)
+}
+
 // Formaterer en dato til API-format: YYYY/MM-DD
 export function formatDato(d: Date): string {
   const y = d.getFullYear()
@@ -15,15 +27,19 @@ export function formatDato(d: Date): string {
   return `${y}/${m}-${day}`
 }
 
-// Gjør om rådata fra API til vårt interne Pris-format (med mva lagt på)
+// Gjør om rådata fra API til vårt interne Pris-format.
+// pris/raw = strømpris ETTER strømstøtte (inkl. mva). spot = før støtte (øre),
+// så vi kan vise hvor mye støtten trekker fra.
 export function formaterPriser(data: ApiPris[], zone: string): Pris[] {
   const faktor = mvaFaktor(zone)
   return data.map(p => {
-    const medMva = p.NOK_per_kWh * faktor
+    const spotInkl = p.NOK_per_kWh * faktor
+    const etterStotte = Math.max(0, spotInkl - stromstotte(p.NOK_per_kWh, zone))
     return {
       time: new Date(p.time_start).getHours() + ':00',
-      pris: parseFloat((medMva * 100).toFixed(1)),
-      raw: medMva,
+      pris: parseFloat((etterStotte * 100).toFixed(1)),
+      raw: etterStotte,
+      spot: parseFloat((spotInkl * 100).toFixed(1)),
     }
   })
 }
@@ -80,6 +96,7 @@ export function beregnAnbefaling(
   data: Pris[],
   apparat: Apparat,
   fristTime?: number,
+  nettleie = 0, // kr/kWh som legges til for "reell" totalpris
 ): Anbefaling | null {
   if (data.length === 0) return null
 
@@ -108,12 +125,15 @@ export function beregnAnbefaling(
     if (sum > hoyestSum) hoyestSum = sum
   }
 
+  const lavestSnitt = lavestSum / timerNoedvendig + nettleie
+  const hoyestSnitt = hoyestSum / timerNoedvendig + nettleie
+
   return {
     startTime: data[bestStart]?.time,
     sluttTime: data[bestStart + timerNoedvendig]?.time || '00:00',
-    snittPris: ((lavestSum / timerNoedvendig) * 100).toFixed(1),
-    kostnad: (kwh * (lavestSum / timerNoedvendig)).toFixed(2),
-    kostnadDyrest: (kwh * (hoyestSum / timerNoedvendig)).toFixed(2),
+    snittPris: (lavestSnitt * 100).toFixed(1),
+    kostnad: (kwh * lavestSnitt).toFixed(2),
+    kostnadDyrest: (kwh * hoyestSnitt).toFixed(2),
     startIdx: bestStart,
   }
 }
@@ -124,12 +144,13 @@ export function kostnadForStart(
   data: Pris[],
   apparat: Apparat,
   startIdx: number,
+  nettleie = 0,
 ): string | null {
   const timerNoedvendig = Math.ceil(apparat.timer)
   if (startIdx < 0 || startIdx + timerNoedvendig > data.length) return null
   const sum = data.slice(startIdx, startIdx + timerNoedvendig).reduce((a, b) => a + b.raw, 0)
   const kwh = (apparat.watt / 1000) * apparat.timer
-  return (kwh * (sum / timerNoedvendig)).toFixed(2)
+  return (kwh * (sum / timerNoedvendig + nettleie)).toFixed(2)
 }
 
 // Statistikk for en liste priser
@@ -145,9 +166,9 @@ export function prisStatistikk(data: Pris[]) {
 // Månedlig kostnad for et apparat ved gitt kWh-pris (NOK).
 // Bruker apparatets faktiske bruksfrekvens (ganger per uke). Eldre apparater
 // uten frekvens antas brukt daglig (7/uke), som matcher gammel oppførsel.
-export function maanedskostnad(apparat: Apparat, prisPerKwh: number): number {
+export function maanedskostnad(apparat: Apparat, prisPerKwh: number, nettleie = 0): number {
   const perUke = apparat.gangerPerUke ?? 7
   const gangerPerMaaned = (perUke * 52) / 12 // ~4.33 uker per måned
   const kwhPerGang = (apparat.watt / 1000) * apparat.timer
-  return kwhPerGang * gangerPerMaaned * prisPerKwh
+  return kwhPerGang * gangerPerMaaned * (prisPerKwh + nettleie)
 }

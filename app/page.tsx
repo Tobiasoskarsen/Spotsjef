@@ -9,6 +9,7 @@ import { useAnimatedNumber } from '@/lib/useAnimatedNumber'
 import { hentAltData, beregnAnbefaling, prisStatistikk, kostnadForStart } from '@/lib/priser'
 import PrisTicker from '@/components/PrisTicker'
 import DagsOppsummering from '@/components/DagsOppsummering'
+import PrisInnstillinger from '@/components/PrisInnstillinger'
 import FlytLogo from '@/components/FlytLogo'
 import PrisGraf from '@/components/PrisGraf'
 import ApparatVelger from '@/components/ApparatVelger'
@@ -45,17 +46,22 @@ export default function Home() {
   const [varslerAktivert, setVarslerAktivert] = useState(false)
   const [aktivTab, setAktivTab] = useState<TabId>('idag')
   const [frist, setFrist] = useState('')
+  const [nettleie, setNettleie] = useState('')
   const [vaer, setVaer] = useState<VaerTime[]>([])
   const [lasterVaer, setLasterVaer] = useState(true)
 
   const tema = lagTema(darkMode)
   const naavaerendePris = priser[new Date().getHours()]?.pris ?? 0
   const animertPris = useAnimatedNumber(naavaerendePris)
+  const spotNaa = priser[new Date().getHours()]?.spot ?? 0
+  const nettleieOre = parseFloat(nettleie) || 0
+  const nettleieKr = nettleieOre / 100
 
   useEffect(() => {
     setZone(localStorage.getItem('zone') || 'NO1')
     // Mørk modus er standard (matcher Flyt-logoen); kun eksplisitt 'false' gir lys
     setDarkMode(localStorage.getItem('dark') !== 'false')
+    setNettleie(localStorage.getItem('nettleie') || '')
     // Last inn brukerens apparatliste. Nytt format: HELE lista under 'apparater'
     // (brukeren kan endre/slette alt). Eldre format ('egneApparater') hadde kun
     // egne apparater i tillegg til standardlista – migrer det over.
@@ -120,9 +126,13 @@ export default function Home() {
   }, [tema.bg])
 
   useEffect(() => {
+    localStorage.setItem('nettleie', nettleie)
+  }, [nettleie])
+
+  useEffect(() => {
     const data = visIdag ? priser : morgendagPriser
-    setAnbefaling(beregnAnbefaling(data, valgtApparat, frist ? parseInt(frist) : undefined))
-  }, [priser, morgendagPriser, valgtApparat, visIdag, frist])
+    setAnbefaling(beregnAnbefaling(data, valgtApparat, frist ? parseInt(frist) : undefined, nettleieKr))
+  }, [priser, morgendagPriser, valgtApparat, visIdag, frist, nettleieKr])
 
   useEffect(() => {
     if (!alarmAktiv || priser.length === 0 || !alarmGrense) return
@@ -252,7 +262,7 @@ export default function Home() {
   const visData = visIdag ? priser : morgendagPriser
   const { min: minPris, max: maxPris, snitt: snittPris } = prisStatistikk(visData)
   // Kostnad ved å kjøre apparatet nå (kun relevant når vi ser på i dag)
-  const kjorNaaKostnad = visIdag ? kostnadForStart(visData, valgtApparat, new Date().getHours()) : null
+  const kjorNaaKostnad = visIdag ? kostnadForStart(visData, valgtApparat, new Date().getHours(), nettleieKr) : null
 
   return (
     <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 32px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
@@ -281,12 +291,16 @@ export default function Home() {
         minPris={minPris}
         maxPris={maxPris}
         snittPris={snittPris}
+        spotNaa={spotNaa}
+        nettleieOre={nettleieOre}
         zone={zone}
         onZoneChange={setZone}
         tema={tema}
       />
 
-      <DagsOppsummering priser={priser} tema={tema} />
+      <DagsOppsummering priser={priser} nettleieOre={nettleieOre} tema={tema} />
+
+      <PrisInnstillinger nettleie={nettleie} onEndre={setNettleie} tema={tema} />
 
       <Tabs aktiv={aktivTab} onBytt={setAktivTab} tema={tema} />
 
@@ -366,7 +380,7 @@ export default function Home() {
       {aktivTab === 'historikk' && <Historikk historikk={historikk} tema={tema} />}
 
       {aktivTab === 'kalkulator' && (
-        <Kalkulator alleApparater={alleApparater} priser={priser} darkMode={darkMode} tema={tema} />
+        <Kalkulator alleApparater={alleApparater} priser={priser} nettleie={nettleieKr} darkMode={darkMode} tema={tema} />
       )}
 
       <p style={{ textAlign: 'center', fontSize: '11px', color: tema.subtekst, marginTop: '12px' }}>

@@ -3,21 +3,22 @@ import { Tema } from '@/lib/theme'
 
 type Props = {
   priser: Pris[]
+  nettleieOre: number
   tema: Tema
 }
 
 // Kort med dagens hovedtall: billigst, dyrest og snitt – en rask "hjemskjerm"-oversikt
-export default function DagsOppsummering({ priser, tema }: Props) {
+export default function DagsOppsummering({ priser, nettleieOre, tema }: Props) {
   if (priser.length === 0) return null
 
   const billigst = priser.reduce((a, b) => (b.pris < a.pris ? b : a))
   const dyrest = priser.reduce((a, b) => (b.pris > a.pris ? b : a))
-  const snitt = (priser.reduce((s, p) => s + p.pris, 0) / priser.length).toFixed(0)
+  const snitt = priser.reduce((s, p) => s + p.pris, 0) / priser.length
 
   const stats = [
-    { label: 'Billigst', verdi: `${billigst.pris.toFixed(0)} øre`, tid: `kl. ${billigst.time}`, farge: '#5b9279' },
-    { label: 'Dyrest', verdi: `${dyrest.pris.toFixed(0)} øre`, tid: `kl. ${dyrest.time}`, farge: '#c98a7a' },
-    { label: 'Snitt', verdi: `${snitt} øre`, tid: 'i dag', farge: tema.tekst },
+    { label: 'Billigst', verdi: `${(billigst.pris + nettleieOre).toFixed(0)} øre`, tid: `kl. ${billigst.time}`, farge: '#5b9279' },
+    { label: 'Dyrest', verdi: `${(dyrest.pris + nettleieOre).toFixed(0)} øre`, tid: `kl. ${dyrest.time}`, farge: '#c98a7a' },
+    { label: 'Snitt', verdi: `${(snitt + nettleieOre).toFixed(0)} øre`, tid: 'i dag', farge: tema.tekst },
   ]
 
   return (
