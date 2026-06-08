@@ -1,53 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Backend-route for AI-innsikt. Holder API-nøkkelen trygt på serveren –
-// den blir ALDRI sendt til nettleseren.
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'API-nøkkel mangler på serveren' },
-      { status: 500 }
-    )
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const zone = searchParams.get('zone') || 'NO1'
+  const date = searchParams.get('date')
+
+  let dateStr: string
+  if (date) {
+    dateStr = date
+  } else {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    dateStr = `${year}/${month}-${day}`
   }
 
   try {
-    const { snitt, min, max, billigTimer } = await req.json()
+    const res = await fetch(
+      `https://www.hvakosterstrommen.no/api/v1/prices/${dateStr}_${zone}.json`
+    )
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [
-          {
-            role: 'user',
-            content: `Du er en hjelpsom strømekspert. Gi en kort, praktisk analyse (3-4 setninger) på norsk av dagens strømpriser. Snittprisen er ${snitt} øre/kWh, laveste er ${min} øre, høyeste er ${max} øre. De billigste timene er: ${billigTimer}. Gi konkrete råd om når folk bør bruke strøm i dag. Vær direkte og uformell.`,
-          },
-        ],
-      }),
-    })
-
+    // API-et svarer 404 for datoer som ikke finnes ennå (f.eks. morgendagen før kl. 13).
+    // Returner en tom liste i stedet for å la feilen velte frontend.
     if (!res.ok) {
-      return NextResponse.json(
-        { error: 'Anthropic API svarte med feil' },
-        { status: 502 }
-      )
+      return NextResponse.json([], { status: 200 })
     }
 
     const data = await res.json()
-    const tekst = data.content?.[0]?.text ?? 'Kunne ikke hente innsikt.'
-    return NextResponse.json({ tekst })
-  } catch (e) {
-    console.error('AI-route feilet:', e)
-    return NextResponse.json(
-      { error: 'Kunne ikke hente AI-innsikt akkurat nå.' },
-      { status: 500 }
-    )
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('Kunne ikke hente priser:', error)
+    return NextResponse.json([], { status: 200 })
   }
 }
