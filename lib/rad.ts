@@ -28,6 +28,23 @@ function erKveldEllerNatt(time: string): boolean {
   return t >= 22 || t <= 6
 }
 
+// Finner det sammenhengende vinduet (av gitt lengde i timer) med lavest – eller
+// høyest, hvis dyrest=true – snittpris. Brukes til lade- og pristopp-råd.
+function finnVindu(
+  priser: Pris[],
+  lengde: number,
+  dyrest = false,
+): { start: Pris; slutt: Pris; snitt: number } | null {
+  if (priser.length < lengde) return null
+  let beste: { i: number; snitt: number } | null = null
+  for (let i = 0; i + lengde <= priser.length; i++) {
+    const snitt = priser.slice(i, i + lengde).reduce((a, b) => a + b.pris, 0) / lengde
+    if (!beste || (dyrest ? snitt > beste.snitt : snitt < beste.snitt)) beste = { i, snitt }
+  }
+  if (!beste) return null
+  return { start: priser[beste.i], slutt: priser[beste.i + lengde - 1], snitt: beste.snitt }
+}
+
 /**
  * Lager 3-4 treffsikre råd basert på vær + strøm.
  * Hver regel legger til et råd HVIS situasjonen passer.
@@ -106,6 +123,40 @@ export function lagRad(priser: Pris[], vaer: VaerTime[]): Rad[] {
         prioritet: 60,
       })
     }
+  }
+
+  // REGEL 5: Beste ladetid for elbil – billigste 3-timersvindu fremover i dag
+  const kommende = priser.slice(naaTime)
+  const ladevindu = finnVindu(kommende, 3)
+  if (ladevindu && ladevindu.snitt < snitt * 0.9 && naa > ladevindu.snitt * 1.05) {
+    const natt = erKveldEllerNatt(ladevindu.start.time)
+    rad.push({
+      emoji: '🚗',
+      tittel: natt ? 'Lad elbilen i natt' : 'Beste ladetid for elbilen',
+      detalj: `Billigst sammenhengende strøm kl. ${ladevindu.start.time}–${ladevindu.slutt.time} (snitt ${ladevindu.snitt.toFixed(0)} øre/kWh). Sett ladetimer i bilen eller appen hvis du kan.`,
+      prioritet: 78,
+    })
+  }
+
+  // REGEL 6: Tydelig pristopp – planlegg varmtvann og dusj utenom
+  const toppvindu = finnVindu(priser, 3, true)
+  if (toppvindu && toppvindu.snitt > snitt * 1.35) {
+    rad.push({
+      emoji: '🚿',
+      tittel: 'Unngå pristoppen',
+      detalj: `Dyrest kl. ${toppvindu.start.time}–${toppvindu.slutt.time} (snitt ${toppvindu.snitt.toFixed(0)} øre/kWh). Skru ned varmtvannsberederen og vent med dusj, vask og lading til etterpå.`,
+      prioritet: 55,
+    })
+  }
+
+  // REGEL 7: Uvanlig billig dag totalt sett
+  if (snitt > 0 && snitt < 25) {
+    rad.push({
+      emoji: '🎉',
+      tittel: 'Billig strømdag!',
+      detalj: `Snittprisen i dag er bare ${snitt.toFixed(0)} øre/kWh – uvanlig lavt. Fin dag for de strømkrevende oppgavene.`,
+      prioritet: 95,
+    })
   }
 
   // Sorter etter prioritet, behold de 4 beste
