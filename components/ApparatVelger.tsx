@@ -15,13 +15,12 @@ type Props = {
   onSlett: (a: Apparat) => void
   delt: boolean
   onDel: () => void
-  darkMode: boolean
   tema: Tema
 }
 
 export default function ApparatVelger({
   alleApparater, valgtApparat, onVelg, anbefaling, visEgetSkjema, onToggleSkjema,
-  egetApparat, onEndreEget, onLeggTil, onSlett, delt, onDel, darkMode, tema,
+  egetApparat, onEndreEget, onLeggTil, onSlett, delt, onDel, tema,
 }: Props) {
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '10px 14px', borderRadius: '12px', border: 'none',

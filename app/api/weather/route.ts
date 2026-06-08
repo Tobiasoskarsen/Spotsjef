@@ -13,6 +13,18 @@ const SONE_KOORDINATER: Record<string, { lat: number; lon: number }> = {
   NO5: { lat: 60.3913, lon: 5.3221 },  // Bergen
 }
 
+// Formen på ett tidspunkt i MET sin locationforecast (kun feltene vi bruker)
+type MetPunkt = {
+  time: string
+  data?: {
+    instant?: { details?: { air_temperature?: number; wind_speed?: number } }
+    next_1_hours?: {
+      summary?: { symbol_code?: string }
+      details?: { precipitation_amount?: number }
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const zone = searchParams.get('zone') || 'NO1'
@@ -32,7 +44,7 @@ export async function GET(request: NextRequest) {
     const serie = data?.properties?.timeseries ?? []
 
     // Plukk ut de neste 24 timene i et enkelt format
-    const timer = serie.slice(0, 24).map((punkt: any) => {
+    const timer = serie.slice(0, 24).map((punkt: MetPunkt) => {
       const detaljer = punkt.data?.instant?.details ?? {}
       const neste1t = punkt.data?.next_1_hours
       return {

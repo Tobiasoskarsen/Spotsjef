@@ -1,5 +1,5 @@
 import { Pris } from './types'
-import { VaerTime, tolkSymbol } from './vaer'
+import { VaerTime } from './vaer'
 
 export type Rad = {
   emoji: string

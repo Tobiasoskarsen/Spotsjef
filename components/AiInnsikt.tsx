@@ -5,11 +5,10 @@ type Props = {
   lasterAI: boolean
   kanAnalysere: boolean
   onAnalyser: () => void
-  darkMode: boolean
   tema: Tema
 }
 
-export default function AiInnsikt({ aiInnsikt, lasterAI, kanAnalysere, onAnalyser, darkMode, tema }: Props) {
+export default function AiInnsikt({ aiInnsikt, lasterAI, kanAnalysere, onAnalyser, tema }: Props) {
   return (
     <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>

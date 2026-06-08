@@ -257,7 +257,6 @@ export default function Home() {
             onSlett={slettApparat}
             delt={delt}
             onDel={delAnbefaling}
-            darkMode={darkMode}
             tema={tema}
           />
 
@@ -266,7 +265,6 @@ export default function Home() {
             lasterAI={lasterAI}
             kanAnalysere={priser.length > 0}
             onAnalyser={hentAiInnsikt}
-            darkMode={darkMode}
             tema={tema}
           />
 
