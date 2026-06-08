@@ -43,6 +43,15 @@ export default function Home() {
   useEffect(() => {
     setZone(localStorage.getItem('zone') || 'NO1')
     setDarkMode(localStorage.getItem('dark') === 'true')
+    const lagrede = localStorage.getItem('egneApparater')
+    if (lagrede) {
+      try {
+        const egne: Apparat[] = JSON.parse(lagrede)
+        if (Array.isArray(egne) && egne.length) setAlleApparater([...APPARATER, ...egne])
+      } catch {
+        // Ugyldig lagret data — ignorer og bruk standardlista
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -102,6 +111,12 @@ export default function Home() {
     setLasterAI(false)
   }
 
+  // Lagrer kun egendefinerte apparater (ikke standardlista) i localStorage
+  function lagreEgne(liste: Apparat[]) {
+    const egne = liste.filter(a => !APPARATER.some(d => d.navn === a.navn))
+    localStorage.setItem('egneApparater', JSON.stringify(egne))
+  }
+
   function leggTilApparat() {
     if (!egetApparat.navn || !egetApparat.watt || !egetApparat.timer) return
     const nytt: Apparat = {
@@ -110,10 +125,19 @@ export default function Home() {
       timer: parseFloat(egetApparat.timer),
       ikon: '🔌',
     }
-    setAlleApparater([...alleApparater, nytt])
+    const oppdatert = [...alleApparater, nytt]
+    setAlleApparater(oppdatert)
+    lagreEgne(oppdatert)
     setValgtApparat(nytt)
     setEgetApparat({ navn: '', watt: '', timer: '' })
     setVisEgetSkjema(false)
+  }
+
+  function slettApparat(a: Apparat) {
+    const oppdatert = alleApparater.filter(x => x.navn !== a.navn)
+    setAlleApparater(oppdatert)
+    lagreEgne(oppdatert)
+    if (valgtApparat.navn === a.navn) setValgtApparat(APPARATER[0])
   }
 
   function delAnbefaling() {
@@ -199,6 +223,7 @@ export default function Home() {
             egetApparat={egetApparat}
             onEndreEget={(felt, verdi) => setEgetApparat({ ...egetApparat, [felt]: verdi })}
             onLeggTil={leggTilApparat}
+            onSlett={slettApparat}
             delt={delt}
             onDel={delAnbefaling}
             darkMode={darkMode}
