@@ -89,6 +89,32 @@ export async function hentAltData(zone: string): Promise<AltData> {
   return { idag: idagData, imorgen: imorgenData, historikk }
 }
 
+// --- Lokal cache, så appen åpner lynraskt og virker offline ---
+
+export type PrisCache = { tid: number; data: AltData }
+
+export function skrivPrisCache(zone: string, data: AltData, tid: number): void {
+  try {
+    localStorage.setItem(`flyt_priser_${zone}`, JSON.stringify({ tid, dato: formatDato(new Date()), data }))
+  } catch {
+    // localStorage utilgjengelig/full – cache er valgfritt, ignorer
+  }
+}
+
+// Returnerer cache kun hvis den er fra i dag (ellers ville "i dag" vist gårsdagens priser)
+export function lesPrisCache(zone: string): PrisCache | null {
+  try {
+    const rå = localStorage.getItem(`flyt_priser_${zone}`)
+    if (!rå) return null
+    const c = JSON.parse(rå)
+    if (c?.dato !== formatDato(new Date())) return null
+    if (!Array.isArray(c?.data?.idag)) return null
+    return { tid: c.tid, data: c.data }
+  } catch {
+    return null
+  }
+}
+
 // Finner det billigste sammenhengende tidsvinduet for et apparat.
 // Hvis fristTime er satt (f.eks. 7 = "ferdig før 07:00"), vurderes kun
 // vinduer som rekker å bli ferdige innen den timen.

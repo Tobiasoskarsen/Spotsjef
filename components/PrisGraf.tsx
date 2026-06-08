@@ -15,7 +15,25 @@ type Props = {
 
 export default function PrisGraf({ data, minPris, maxPris, snittPris, anbefaling, valgtApparat, laster, tema }: Props) {
   if (laster) {
-    return <div style={{ textAlign: 'center', padding: '40px', color: tema.subtekst }}>Henter priser...</div>
+    // Skeleton: pulserende plassholdere mens prisene hentes
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', padding: '0 4px' }}>
+          {[60, 70, 64].map((w, i) => (
+            <div key={i} className="skjelett" style={{ width: w, height: '12px', borderRadius: '6px', background: tema.inputBg }} />
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '220px', padding: '0 4px' }}>
+          {Array.from({ length: 24 }).map((_, i) => (
+            <div
+              key={i}
+              className="skjelett"
+              style={{ flex: 1, height: `${30 + ((i * 37) % 60)}%`, borderRadius: '5px 5px 0 0', background: tema.inputBg, animationDelay: `${(i % 6) * 0.1}s` }}
+            />
+          ))}
+        </div>
+      </div>
+    )
   }
   if (data.length === 0) {
     return <div style={{ textAlign: 'center', padding: '40px', color: tema.subtekst }}>Priser ikke tilgjengelig ennå</div>

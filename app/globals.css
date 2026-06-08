@@ -21,6 +21,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Skeleton-lasting: myk puls mens data hentes */
+@keyframes flytPuls {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+.skjelett {
+  animation: flytPuls 1.4s ease-in-out infinite;
+}
+
 /* Subtil løft-effekt på trykkbare elementer */
 button {
   transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease,

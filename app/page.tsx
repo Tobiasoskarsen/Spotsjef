@@ -6,7 +6,7 @@ import { Pris, Apparat, Anbefaling, HistorikkPunkt } from '@/lib/types'
 import { APPARATER } from '@/lib/constants'
 import { lagTema } from '@/lib/theme'
 import { useAnimatedNumber } from '@/lib/useAnimatedNumber'
-import { hentAltData, beregnAnbefaling, prisStatistikk, kostnadForStart } from '@/lib/priser'
+import { hentAltData, beregnAnbefaling, prisStatistikk, kostnadForStart, lesPrisCache, skrivPrisCache } from '@/lib/priser'
 import PrisTicker from '@/components/PrisTicker'
 import DagsOppsummering from '@/components/DagsOppsummering'
 import PrisInnstillinger from '@/components/PrisInnstillinger'
@@ -31,6 +31,8 @@ export default function Home() {
   const [anbefaling, setAnbefaling] = useState<Anbefaling | null>(null)
   const [laster, setLaster] = useState(true)
   const [feil, setFeil] = useState('')
+  const [sistOppdatert, setSistOppdatert] = useState<number | null>(null)
+  const [hentTeller, setHentTeller] = useState(0)
   const [visIdag, setVisIdag] = useState(true)
   const [darkMode, setDarkMode] = useState(true)
   const [egetApparat, setEgetApparat] = useState({ navn: '', watt: '', timer: '', ikon: '🔌', gangerPerUke: '3' })
@@ -90,20 +92,42 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('zone', zone)
     let avbrutt = false
-    setLaster(true)
     setFeil('')
+
+    // Vis cache umiddelbart (rask oppstart + fungerer offline)
+    const cache = lesPrisCache(zone)
+    if (cache) {
+      setPriser(cache.data.idag)
+      setMorgendagPriser(cache.data.imorgen)
+      setHistorikk(cache.data.historikk)
+      setSistOppdatert(cache.tid)
+      setLaster(false)
+    } else {
+      setLaster(true)
+    }
+
+    // Hent ferske data i bakgrunnen
     hentAltData(zone)
       .then(data => {
         if (avbrutt) return
-        setPriser(data.idag)
-        setMorgendagPriser(data.imorgen)
-        setHistorikk(data.historikk)
-        if (data.idag.length === 0) setFeil('Fikk ikke hentet dagens priser. Prøv igjen senere.')
+        if (data.idag.length === 0) {
+          if (!cache) setFeil('Fikk ikke hentet dagens priser. Prøv igjen.')
+        } else {
+          setPriser(data.idag)
+          setMorgendagPriser(data.imorgen)
+          setHistorikk(data.historikk)
+          const tid = Date.now()
+          setSistOppdatert(tid)
+          skrivPrisCache(zone, data, tid)
+          setFeil('')
+        }
       })
-      .catch(() => !avbrutt && setFeil('Noe gikk galt under henting av priser.'))
+      .catch(() => {
+        if (!avbrutt && !cache) setFeil('Noe gikk galt under henting av priser.')
+      })
       .finally(() => !avbrutt && setLaster(false))
     return () => { avbrutt = true }
-  }, [zone])
+  }, [zone, hentTeller])
 
      useEffect(() => {
        let avbrutt = false
@@ -280,8 +304,11 @@ export default function Home() {
       </div>
 
       {feil && (
-        <div style={{ background: darkMode ? 'rgba(218,138,122,0.13)' : '#f9eae5', border: `1px solid ${darkMode ? 'rgba(218,138,122,0.28)' : '#f0d6cd'}`, borderRadius: '14px', padding: '12px 16px', margin: '12px 0', color: darkMode ? '#e3a99c' : '#a35a45', fontSize: '13px', boxShadow: tema.skygge }}>
-          {feil}
+        <div style={{ background: darkMode ? 'rgba(218,138,122,0.13)' : '#f9eae5', border: `1px solid ${darkMode ? 'rgba(218,138,122,0.28)' : '#f0d6cd'}`, borderRadius: '14px', padding: '12px 16px', margin: '12px 0', color: darkMode ? '#e3a99c' : '#a35a45', fontSize: '13px', boxShadow: tema.skygge, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <span>{feil}</span>
+          <button onClick={() => setHentTeller(t => t + 1)} disabled={laster} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: '10px', border: 'none', background: tema.accentGradient, color: '#fff', cursor: laster ? 'default' : 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit', opacity: laster ? 0.6 : 1 }}>
+            {laster ? 'Henter…' : 'Prøv igjen'}
+          </button>
         </div>
       )}
 
@@ -389,7 +416,10 @@ export default function Home() {
       )}
 
       <p style={{ textAlign: 'center', fontSize: '11px', color: tema.subtekst, marginTop: '12px' }}>
-        Priser fra hvakosterstrommen.no · Oppdateres daglig
+        Priser fra hvakosterstrommen.no
+        {sistOppdatert
+          ? ` · Sist oppdatert kl. ${new Date(sistOppdatert).toLocaleTimeString('no', { hour: '2-digit', minute: '2-digit' })}`
+          : ' · Oppdateres daglig'}
       </p>
 
       <BunnMeny aktiv={side} onBytt={setSide} tema={tema} />
