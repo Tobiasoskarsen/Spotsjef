@@ -6,8 +6,9 @@ import { Pris, Apparat, Anbefaling, HistorikkPunkt } from '@/lib/types'
 import { APPARATER } from '@/lib/constants'
 import { lagTema } from '@/lib/theme'
 import { useAnimatedNumber } from '@/lib/useAnimatedNumber'
-import { hentAltData, beregnAnbefaling, prisStatistikk } from '@/lib/priser'
+import { hentAltData, beregnAnbefaling, prisStatistikk, kostnadForStart } from '@/lib/priser'
 import PrisTicker from '@/components/PrisTicker'
+import DagsOppsummering from '@/components/DagsOppsummering'
 import PrisGraf from '@/components/PrisGraf'
 import ApparatVelger from '@/components/ApparatVelger'
 import AiInnsikt from '@/components/AiInnsikt'
@@ -40,6 +41,7 @@ export default function Home() {
   const [lasterAI, setLasterAI] = useState(false)
   const [varslerAktivert, setVarslerAktivert] = useState(false)
   const [aktivTab, setAktivTab] = useState<TabId>('idag')
+  const [frist, setFrist] = useState('')
   const [vaer, setVaer] = useState<VaerTime[]>([])
   const [lasterVaer, setLasterVaer] = useState(true)
 
@@ -101,8 +103,8 @@ export default function Home() {
 
   useEffect(() => {
     const data = visIdag ? priser : morgendagPriser
-    setAnbefaling(beregnAnbefaling(data, valgtApparat))
-  }, [priser, morgendagPriser, valgtApparat, visIdag])
+    setAnbefaling(beregnAnbefaling(data, valgtApparat, frist ? parseInt(frist) : undefined))
+  }, [priser, morgendagPriser, valgtApparat, visIdag, frist])
 
   useEffect(() => {
     if (!alarmAktiv || priser.length === 0 || !alarmGrense) return
@@ -180,6 +182,8 @@ export default function Home() {
 
   const visData = visIdag ? priser : morgendagPriser
   const { min: minPris, max: maxPris, snitt: snittPris } = prisStatistikk(visData)
+  // Kostnad ved å kjøre apparatet nå (kun relevant når vi ser på i dag)
+  const kjorNaaKostnad = visIdag ? kostnadForStart(visData, valgtApparat, new Date().getHours()) : null
 
   return (
     <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 32px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
@@ -214,6 +218,8 @@ export default function Home() {
         onZoneChange={setZone}
         tema={tema}
       />
+
+      <DagsOppsummering priser={priser} tema={tema} />
 
       <Tabs aktiv={aktivTab} onBytt={setAktivTab} tema={tema} />
 
@@ -258,6 +264,9 @@ export default function Home() {
             onSlett={slettApparat}
             delt={delt}
             onDel={delAnbefaling}
+            frist={frist}
+            onEndreFrist={setFrist}
+            kjorNaaKostnad={kjorNaaKostnad}
             tema={tema}
           />
 

@@ -15,17 +15,33 @@ type Props = {
   onSlett: (a: Apparat) => void
   delt: boolean
   onDel: () => void
+  frist: string
+  onEndreFrist: (v: string) => void
+  kjorNaaKostnad: string | null
   tema: Tema
 }
 
 export default function ApparatVelger({
   alleApparater, valgtApparat, onVelg, anbefaling, visEgetSkjema, onToggleSkjema,
-  egetApparat, onEndreEget, onLeggTil, onSlett, delt, onDel, tema,
+  egetApparat, onEndreEget, onLeggTil, onSlett, delt, onDel, frist, onEndreFrist, kjorNaaKostnad, tema,
 }: Props) {
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '10px 14px', borderRadius: '12px', border: 'none',
     background: tema.cardBg, color: tema.tekst, fontSize: '14px', outline: 'none',
     boxSizing: 'border-box', fontFamily: 'inherit',
+  }
+
+  // Spar-estimat: foretrekk "kjør nå"-sammenligning, ellers "vs dyreste tid"
+  let sparingTekst: string | null = null
+  if (anbefaling) {
+    const best = parseFloat(anbefaling.kostnad)
+    const dyrest = parseFloat(anbefaling.kostnadDyrest)
+    const naa = kjorNaaKostnad != null ? parseFloat(kjorNaaKostnad) : null
+    if (naa != null && naa - best > 0.05) {
+      sparingTekst = `Kjør nå koster ${naa.toFixed(2)} kr — spar ${(naa - best).toFixed(2)} kr ved å vente til kl. ${anbefaling.startTime}`
+    } else if (dyrest - best > 0.05) {
+      sparingTekst = `Spar opptil ${(dyrest - best).toFixed(2)} kr vs. det dyreste tidspunktet`
+    }
   }
 
   return (
@@ -80,19 +96,39 @@ export default function ApparatVelger({
         </div>
       )}
 
-      {anbefaling && (
+      {/* «Ferdig før kl. X»-planlegger */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+        <span style={{ fontSize: '13px', color: tema.subtekst }}>⏰ Ferdig før</span>
+        <select value={frist} onChange={e => onEndreFrist(e.target.value)} style={{ padding: '8px 12px', borderRadius: '11px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <option value="">Når som helst</option>
+          {Array.from({ length: 23 }, (_, i) => i + 1).map(h => (
+            <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+          ))}
+        </select>
+      </div>
+
+      {anbefaling ? (
         <div style={{ background: tema.accentBg, borderRadius: '14px', padding: '16px' }}>
           <p style={{ color: tema.pillTekst, fontWeight: 500, margin: '0 0 4px', fontSize: '14px' }}>
             {valgtApparat.ikon} Kjør {valgtApparat.navn} kl. {anbefaling.startTime}–{anbefaling.sluttTime}
           </p>
-          <p style={{ color: tema.accent, fontSize: '12px', margin: '0 0 12px' }}>
+          <p style={{ color: tema.accent, fontSize: '12px', margin: '0 0 10px' }}>
             Snitt {anbefaling.snittPris} øre/kWh · estimert kostnad {anbefaling.kostnad} kr
           </p>
+          {sparingTekst && (
+            <p style={{ color: tema.pillTekst, fontSize: '13px', fontWeight: 600, margin: '0 0 12px' }}>
+              💰 {sparingTekst}
+            </p>
+          )}
           <button onClick={onDel} style={{ padding: '8px 16px', borderRadius: '12px', background: tema.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit' }}>
             {delt ? 'Kopiert!' : 'Del anbefaling'}
           </button>
         </div>
-      )}
+      ) : frist && Math.ceil(valgtApparat.timer) > parseInt(frist) ? (
+        <div style={{ background: tema.inputBg, borderRadius: '14px', padding: '16px', fontSize: '13px', color: tema.subtekst }}>
+          {valgtApparat.navn} trenger {valgtApparat.timer}t og rekker ikke å bli ferdig før kl. {String(parseInt(frist)).padStart(2, '0')}:00. Velg et senere tidspunkt.
+        </div>
+      ) : null}
     </div>
   )
 }

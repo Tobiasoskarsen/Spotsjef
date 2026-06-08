@@ -73,32 +73,63 @@ export async function hentAltData(zone: string): Promise<AltData> {
   return { idag: idagData, imorgen: imorgenData, historikk }
 }
 
-// Finner det billigste sammenhengende tidsvinduet for et apparat
-export function beregnAnbefaling(data: Pris[], apparat: Apparat): Anbefaling | null {
+// Finner det billigste sammenhengende tidsvinduet for et apparat.
+// Hvis fristTime er satt (f.eks. 7 = "ferdig før 07:00"), vurderes kun
+// vinduer som rekker å bli ferdige innen den timen.
+export function beregnAnbefaling(
+  data: Pris[],
+  apparat: Apparat,
+  fristTime?: number,
+): Anbefaling | null {
   if (data.length === 0) return null
 
   const timerNoedvendig = Math.ceil(apparat.timer)
-  let bestStart = 0
-  let lavestSum = Infinity
+  const kwh = (apparat.watt / 1000) * apparat.timer
 
-  for (let i = 0; i <= data.length - timerNoedvendig; i++) {
+  // Øvre grense for når vinduet må være ferdig (eksklusiv indeks)
+  const maksSlutt = fristTime != null ? Math.min(data.length, fristTime) : data.length
+  if (maksSlutt < timerNoedvendig) return null // rekker ikke fristen
+
+  let bestStart = -1
+  let lavestSum = Infinity
+  for (let i = 0; i + timerNoedvendig <= maksSlutt; i++) {
     const sum = data.slice(i, i + timerNoedvendig).reduce((a, b) => a + b.raw, 0)
     if (sum < lavestSum) {
       lavestSum = sum
       bestStart = i
     }
   }
+  if (bestStart < 0) return null
 
-  const snittPris = ((lavestSum / timerNoedvendig) * 100).toFixed(1)
-  const kostnad = ((apparat.watt / 1000) * apparat.timer * (lavestSum / timerNoedvendig)).toFixed(2)
+  // Dyreste vindu over HELE dagen (uavhengig av frist) – grunnlag for spar-estimat
+  let hoyestSum = -Infinity
+  for (let i = 0; i + timerNoedvendig <= data.length; i++) {
+    const sum = data.slice(i, i + timerNoedvendig).reduce((a, b) => a + b.raw, 0)
+    if (sum > hoyestSum) hoyestSum = sum
+  }
 
   return {
     startTime: data[bestStart]?.time,
     sluttTime: data[bestStart + timerNoedvendig]?.time || '00:00',
-    snittPris,
-    kostnad,
+    snittPris: ((lavestSum / timerNoedvendig) * 100).toFixed(1),
+    kostnad: (kwh * (lavestSum / timerNoedvendig)).toFixed(2),
+    kostnadDyrest: (kwh * (hoyestSum / timerNoedvendig)).toFixed(2),
     startIdx: bestStart,
   }
+}
+
+// Kostnad for å kjøre apparatet i et vindu som starter på en gitt time-indeks.
+// Brukes til "kjør nå"-sammenligningen. null hvis vinduet ikke får plass.
+export function kostnadForStart(
+  data: Pris[],
+  apparat: Apparat,
+  startIdx: number,
+): string | null {
+  const timerNoedvendig = Math.ceil(apparat.timer)
+  if (startIdx < 0 || startIdx + timerNoedvendig > data.length) return null
+  const sum = data.slice(startIdx, startIdx + timerNoedvendig).reduce((a, b) => a + b.raw, 0)
+  const kwh = (apparat.watt / 1000) * apparat.timer
+  return (kwh * (sum / timerNoedvendig)).toFixed(2)
 }
 
 // Statistikk for en liste priser

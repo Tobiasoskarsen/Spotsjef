@@ -16,7 +16,8 @@ export type Anbefaling = {
   startTime: string
   sluttTime: string
   snittPris: string
-  kostnad: string
+  kostnad: string // kostnad ved billigste vindu
+  kostnadDyrest: string // kostnad ved dyreste vindu i dag (for spar-estimat)
   startIdx: number
 }
 
