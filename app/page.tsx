@@ -1,6 +1,4 @@
 'use client'
-import { lagRad } from '@/lib/rad'
-import RadKort from '@/components/RadKort'
 import { useEffect, useState } from 'react'
 import { Pris, Apparat, Anbefaling, HistorikkPunkt } from '@/lib/types'
 import { APPARATER, soneForKoordinater, soneForStedsdata } from '@/lib/constants'
@@ -156,7 +154,6 @@ export default function Home() {
        return () => { avbrutt = true }
      }, [zone, adresseLat, adresseLon])
 
-  const rad = lagRad(priser, vaer, alleApparater)
 
   useEffect(() => {
     localStorage.setItem('dark', String(darkMode))
@@ -510,7 +507,6 @@ export default function Home() {
 
             {tariffType === 'spot' ? (
               <>
-                <RadKort rad={rad} tema={tema} />
                 <div id="prisgraf" style={{ background: tema.cardBg, borderRadius: '20px', padding: '20px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                     {(['I dag', 'I morgen'] as const).map((label, i) => {
