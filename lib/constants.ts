@@ -25,3 +25,44 @@ export const SONER = [
   { kode: 'NO4', navn: 'Tromsø (NO4)' },
   { kode: 'NO5', navn: 'Bergen (NO5)' },
 ]
+
+const COUNTY_TO_ZONE: Record<string, string> = {
+  Oslo: 'NO1',
+  Akershus: 'NO1',
+  Buskerud: 'NO1',
+  Innlandet: 'NO1',
+  Vestfold: 'NO1',
+  Telemark: 'NO1',
+  Østfold: 'NO1',
+  Agder: 'NO2',
+  Rogaland: 'NO2',
+  Trøndelag: 'NO3',
+  'Møre og Romsdal': 'NO3',
+  Nordland: 'NO4',
+  Troms: 'NO4',
+  Finnmark: 'NO4',
+  Vestland: 'NO5',
+  // For backwards compatibility if geocoding returns merged/older names:
+  Viken: 'NO1',
+  'Vestfold og Telemark': 'NO1',
+  'Troms og Finnmark': 'NO4',
+  'Aust-Agder': 'NO2',
+  'Vest-Agder': 'NO2',
+  'Møre og Romsdal': 'NO3',
+  'Sogn og Fjordane': 'NO5',
+  Hordaland: 'NO5',
+}
+
+export function soneForStedsdata(data: { county?: string; state?: string; region?: string }) {
+  const county = data.county || data.state || data.region
+  if (!county) return null
+  return COUNTY_TO_ZONE[county] || null
+}
+
+export function soneForKoordinater(lat: number, lon: number) {
+  if (lat >= 66) return 'NO4'
+  if (lat >= 62) return 'NO3'
+  if (lon < 7.5) return 'NO5'
+  if (lat < 60.5) return 'NO2'
+  return 'NO1'
+}

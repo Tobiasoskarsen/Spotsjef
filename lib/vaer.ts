@@ -32,8 +32,14 @@ export function tolkSymbol(symbol: string | null): { tekst: string; emoji: strin
 }
 
 // Henter vær for en sone via vår egen backend-route
-export async function hentVaer(zone: string): Promise<VaerTime[]> {
-  const res = await fetch(`/api/weather?zone=${zone}`)
+export async function hentVaer(zone: string, lat?: number, lon?: number): Promise<VaerTime[]> {
+  const params = new URLSearchParams()
+  params.set('zone', zone)
+  if (lat !== undefined && lon !== undefined) {
+    params.set('lat', lat.toString())
+    params.set('lon', lon.toString())
+  }
+  const res = await fetch(`/api/weather?${params.toString()}`)
   if (!res.ok) return []
   const data = await res.json()
   return Array.isArray(data.timer) ? data.timer : []

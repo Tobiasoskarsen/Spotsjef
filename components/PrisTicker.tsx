@@ -10,6 +10,8 @@ type Props = {
   spotNaa: number // pris før strømstøtte (øre)
   nettleieOre: number // nettleie + påslag (øre/kWh)
   zone: string
+  visKr: boolean
+  onToggleVisKr: () => void
   onZoneChange: (zone: string) => void
   tema: Tema
 }
@@ -24,15 +26,18 @@ function prisEtikett(pris: number, min: number, max: number): string {
 }
 
 export default function PrisTicker({
-  naavaerendePris, animertPris, minPris, maxPris, snittPris, spotNaa, nettleieOre, zone, onZoneChange, tema,
+  naavaerendePris, animertPris, minPris, maxPris, snittPris, spotNaa, nettleieOre, zone, visKr, onToggleVisKr, onZoneChange, tema,
 }: Props) {
   if (naavaerendePris <= 0) return null
 
   const farge = getColorSterk(naavaerendePris, minPris, maxPris)
   const totalNaa = animertPris + nettleieOre
   const totalSnitt = (parseFloat(snittPris) + nettleieOre).toFixed(0)
+  const displayNaa = visKr ? (totalNaa / 100).toFixed(2) : totalNaa.toFixed(1)
+  const displaySnitt = visKr ? ((parseFloat(snittPris) + nettleieOre) / 100).toFixed(2) : totalSnitt
   const stotteAktiv = spotNaa > naavaerendePris + 1 // strømstøtte trekker fra nå
   const harNettleie = nettleieOre > 0
+  const unit = visKr ? 'kr/kWh' : 'øre/kWh'
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden', background: tema.cardBg, borderRadius: '22px', padding: '22px', margin: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: tema.skyggeHero, border: `1px solid ${tema.border}` }}>
@@ -42,9 +47,9 @@ export default function PrisTicker({
         <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{harNettleie ? 'Totalpris nå' : 'Nåværende pris'}</p>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
           <span className="tnum" style={{ fontSize: '50px', fontWeight: 700, color: farge, lineHeight: 1, letterSpacing: '-0.03em' }}>
-            {totalNaa.toFixed(1)}
+            {displayNaa}
           </span>
-          <span style={{ fontSize: '15px', color: tema.subtekst }}>øre/kWh</span>
+          <span style={{ fontSize: '15px', color: tema.subtekst }}>{unit}</span>
         </div>
         {(stotteAktiv || harNettleie) && (
           <p style={{ fontSize: '11px', color: tema.subtekst, margin: '5px 0 0' }}>
@@ -60,10 +65,15 @@ export default function PrisTicker({
       </div>
       <div style={{ position: 'relative', textAlign: 'right' }}>
         <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 4px' }}>Snitt i dag</p>
-        <p className="tnum" style={{ fontSize: '19px', fontWeight: 600, color: tema.tekst, margin: '0 0 10px' }}>{totalSnitt} øre</p>
-        <select value={zone} onChange={e => onZoneChange(e.target.value)} style={{ padding: '7px 12px', borderRadius: '11px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
-          {SONER.map(s => <option key={s.kode} value={s.kode}>{s.navn}</option>)}
-        </select>
+        <p className="tnum" style={{ fontSize: '19px', fontWeight: 600, color: tema.tekst, margin: '0 0 10px' }}>{displaySnitt} {unit}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <select value={zone} onChange={e => onZoneChange(e.target.value)} style={{ padding: '7px 12px', borderRadius: '11px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {SONER.map(s => <option key={s.kode} value={s.kode}>{s.navn}</option>)}
+          </select>
+          <button onClick={onToggleVisKr} type="button" style={{ padding: '7px 12px', borderRadius: '11px', border: `1px solid ${tema.border}`, background: tema.accentBg, color: tema.pillTekst, fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Vis i {visKr ? 'øre' : 'kr'}
+          </button>
+        </div>
       </div>
     </div>
   )

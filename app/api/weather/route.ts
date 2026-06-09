@@ -28,7 +28,11 @@ type MetPunkt = {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const zone = searchParams.get('zone') || 'NO1'
-  const koord = SONE_KOORDINATER[zone] || SONE_KOORDINATER.NO1
+  const latParam = parseFloat(searchParams.get('lat') || '')
+  const lonParam = parseFloat(searchParams.get('lon') || '')
+  const koord = Number.isFinite(latParam) && Number.isFinite(lonParam)
+    ? { lat: latParam, lon: lonParam }
+    : SONE_KOORDINATER[zone] || SONE_KOORDINATER.NO1
 
   try {
     const res = await fetch(

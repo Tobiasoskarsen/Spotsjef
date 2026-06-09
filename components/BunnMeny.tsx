@@ -6,7 +6,7 @@ export type Side = 'hjem' | 'apparater' | 'historikk' | 'mer'
 const SIDER: { id: Side; label: string; Ikon: LucideIcon }[] = [
   { id: 'hjem', label: 'Hjem', Ikon: Home },
   { id: 'apparater', label: 'Apparater', Ikon: Zap },
-  { id: 'historikk', label: 'Historikk', Ikon: BarChart3 },
+  { id: 'historikk', label: 'AI', Ikon: BarChart3 },
   { id: 'mer', label: 'Mer', Ikon: Settings },
 ]
 
