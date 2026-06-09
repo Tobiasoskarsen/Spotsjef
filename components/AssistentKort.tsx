@@ -39,6 +39,9 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   const [lastet, setLastet] = useState(false)
   const [visOppsett, setVisOppsett] = useState(false)
   const [lagrer, setLagrer] = useState(false)
+  const [aiSammendrag, setAiSammendrag] = useState('')
+  const [lasterAi, setLasterAi] = useState(false)
+  const [aiFeil, setAiFeil] = useState('')
 
   function lesLokal(): AssistentConfig | null {
     try {
@@ -86,6 +89,26 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
     setCfg(ny)
     setLagrer(false)
     setVisOppsett(false)
+  }
+
+  // AI-laget (Fase 5): be Claude formulere punktene til en naturlig brief.
+  // På forespørsel (knapp) – holder kostnad nede. AI finner aldri på noe.
+  async function hentSammendrag(p: { tekst: string; kilde: string }[]) {
+    setLasterAi(true)
+    setAiFeil('')
+    try {
+      const res = await fetch('/api/assistent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ navn: cfg.navn, punkter: p }),
+      })
+      const data = await res.json()
+      if (res.ok && data.tekst) setAiSammendrag(data.tekst)
+      else setAiFeil(data.error || 'Kunne ikke lage oppsummering.')
+    } catch {
+      setAiFeil('Kunne ikke lage oppsummering akkurat nå.')
+    }
+    setLasterAi(false)
   }
 
   // Unngå hopp/feil innhold før vi vet hva som er lagret
@@ -167,8 +190,25 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
         </p>
       )}
 
+      {aiSammendrag && (
+        <div style={{ marginTop: '14px', padding: '14px 16px', borderRadius: '14px', background: tema.accentBg, color: '#fff' }}>
+          <p style={{ fontSize: '11px', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, opacity: 0.85 }}>✨ Dagens brief</p>
+          <p style={{ fontSize: '14px', margin: 0, lineHeight: 1.6 }}>{aiSammendrag}</p>
+        </div>
+      )}
+
+      {aiFeil && (
+        <p style={{ fontSize: '12px', color: '#d1605f', margin: '10px 0 0' }}>{aiFeil}</p>
+      )}
+
+      {punkter.length > 0 && !aiSammendrag && (
+        <button type="button" onClick={() => hentSammendrag(punkter.map(p => ({ tekst: p.tekst, kilde: p.kilde })))} disabled={lasterAi} style={{ marginTop: '14px', width: '100%', padding: '11px', borderRadius: '12px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, cursor: lasterAi ? 'default' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', opacity: lasterAi ? 0.7 : 1 }}>
+          {lasterAi ? 'Lager brief …' : '✨ Oppsummer med AI'}
+        </button>
+      )}
+
       <p style={{ fontSize: '11px', color: tema.subtekst, margin: '14px 0 0', lineHeight: 1.6 }}>
-        Snart: påminnelser via varsel og en smartere brief med AI.
+        Snart: påminnelser via varsel når strømmen er billig eller søpla skal ut.
       </p>
     </div>
   )
