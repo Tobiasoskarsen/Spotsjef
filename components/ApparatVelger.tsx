@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Apparat, Anbefaling } from '@/lib/types'
 import { APPARAT_IKONER } from '@/lib/constants'
 import { Tema } from '@/lib/theme'
+import { Pencil, X, Plus, RotateCcw, Clock } from 'lucide-react'
 
 type Props = {
   alleApparater: Apparat[]
@@ -77,16 +78,16 @@ export default function ApparatVelger({
                 <div style={{ fontSize: '11px', color: tema.subtekst }}>{a.watt}W · {a.timer}t{a.gangerPerUke ? ` · ${a.gangerPerUke}×/uke` : ''}</div>
               </button>
               <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px' }}>
-                <button onClick={() => onRediger(a)} aria-label={`Endre ${a.navn}`} title="Endre apparat" style={hjorneKnapp}>✎</button>
+                <button onClick={() => onRediger(a)} aria-label={`Endre ${a.navn}`} title="Endre apparat" style={hjorneKnapp}><Pencil size={13} /></button>
                 {kanSlette && (
-                  <button onClick={() => onSlett(a)} aria-label={`Slett ${a.navn}`} title="Slett apparat" style={hjorneKnapp}>✕</button>
+                  <button onClick={() => onSlett(a)} aria-label={`Slett ${a.navn}`} title="Slett apparat" style={hjorneKnapp}><X size={14} /></button>
                 )}
               </div>
             </div>
           )
         })}
-        <button onClick={onToggleSkjema} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: `1.5px dashed ${tema.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-          <div style={{ fontSize: '20px', marginBottom: '6px', color: tema.subtekst }}>+</div>
+        <button onClick={onToggleSkjema} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: `1.5px dashed ${tema.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: tema.subtekst }}>
+          <div style={{ marginBottom: '6px' }}><Plus size={20} /></div>
           <div style={{ fontSize: '13px', fontWeight: 500, color: tema.subtekst }}>Legg til</div>
           <div style={{ fontSize: '11px', color: tema.subtekst }}>Eget apparat</div>
         </button>
@@ -100,9 +101,10 @@ export default function ApparatVelger({
             else { setBekreftTilbakestill(true) }
           }}
           onBlur={() => setBekreftTilbakestill(false)}
-          style={{ background: 'transparent', border: 'none', color: bekreftTilbakestill ? tema.accent : tema.subtekst, cursor: 'pointer', fontSize: '12px', fontWeight: bekreftTilbakestill ? 600 : 400, fontFamily: 'inherit', padding: '2px 0' }}
+          style={{ background: 'transparent', border: 'none', color: bekreftTilbakestill ? tema.accent : tema.subtekst, cursor: 'pointer', fontSize: '12px', fontWeight: bekreftTilbakestill ? 600 : 400, fontFamily: 'inherit', padding: '2px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
         >
-          {bekreftTilbakestill ? '↺ Trykk en gang til for å tilbakestille til standard' : '↺ Tilbakestill til standard'}
+          <RotateCcw size={13} />
+          {bekreftTilbakestill ? 'Trykk en gang til for å tilbakestille til standard' : 'Tilbakestill til standard'}
         </button>
       </div>
 
@@ -145,7 +147,7 @@ export default function ApparatVelger({
 
       {/* «Ferdig før kl. X»-planlegger */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <span style={{ fontSize: '13px', color: tema.subtekst }}>⏰ Ferdig før</span>
+        <span style={{ fontSize: '13px', color: tema.subtekst, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Clock size={14} /> Ferdig før</span>
         <select value={frist} onChange={e => onEndreFrist(e.target.value)} style={{ padding: '8px 12px', borderRadius: '11px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
           <option value="">Når som helst</option>
           {Array.from({ length: 23 }, (_, i) => i + 1).map(h => (

@@ -12,6 +12,7 @@ import DagsOppsummering from '@/components/DagsOppsummering'
 import PrisInnstillinger from '@/components/PrisInnstillinger'
 import FlytLogo from '@/components/FlytLogo'
 import { abonnerPaaPush, avsluttPush, pushStottes } from '@/lib/pushClient'
+import { Sun, Moon } from 'lucide-react'
 import PrisGraf from '@/components/PrisGraf'
 import ApparatVelger from '@/components/ApparatVelger'
 import AiInnsikt from '@/components/AiInnsikt'
@@ -325,8 +326,8 @@ export default function Home() {
             <p style={{ fontSize: '12.5px', color: tema.subtekst, margin: '1px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
           </div>
         </div>
-        <button onClick={() => setDarkMode(!darkMode)} style={{ width: '40px', height: '40px', borderRadius: '13px', border: `1px solid ${tema.border}`, background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', fontSize: '16px', boxShadow: tema.skygge, flexShrink: 0 }} aria-label="Bytt mellom lys og mørk modus">
-          {darkMode ? '☀' : '☾'}
+        <button onClick={() => setDarkMode(!darkMode)} style={{ width: '40px', height: '40px', borderRadius: '13px', border: `1px solid ${tema.border}`, background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', boxShadow: tema.skygge, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Bytt mellom lys og mørk modus">
+          {darkMode ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
         </button>
       </div>
 

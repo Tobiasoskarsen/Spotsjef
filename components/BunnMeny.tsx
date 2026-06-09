@@ -1,12 +1,13 @@
 import { Tema } from '@/lib/theme'
+import { Home, Zap, BarChart3, Settings, type LucideIcon } from 'lucide-react'
 
 export type Side = 'hjem' | 'apparater' | 'historikk' | 'mer'
 
-const SIDER: { id: Side; label: string; ikon: string }[] = [
-  { id: 'hjem', label: 'Hjem', ikon: '🏠' },
-  { id: 'apparater', label: 'Apparater', ikon: '🔌' },
-  { id: 'historikk', label: 'Historikk', ikon: '📊' },
-  { id: 'mer', label: 'Mer', ikon: '⚙️' },
+const SIDER: { id: Side; label: string; Ikon: LucideIcon }[] = [
+  { id: 'hjem', label: 'Hjem', Ikon: Home },
+  { id: 'apparater', label: 'Apparater', Ikon: Zap },
+  { id: 'historikk', label: 'Historikk', Ikon: BarChart3 },
+  { id: 'mer', label: 'Mer', Ikon: Settings },
 ]
 
 type Props = {
@@ -26,22 +27,22 @@ export default function BunnMeny({ aktiv, onBytt, tema }: Props) {
       }}
     >
       <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', gap: '4px', padding: '6px 8px calc(8px + env(safe-area-inset-bottom))' }}>
-        {SIDER.map(s => {
-          const valgt = aktiv === s.id
+        {SIDER.map(({ id, label, Ikon }) => {
+          const valgt = aktiv === id
           return (
             <button
-              key={s.id}
-              onClick={() => onBytt(s.id)}
-              aria-label={s.label}
+              key={id}
+              onClick={() => onBytt(id)}
+              aria-label={label}
               aria-current={valgt ? 'page' : undefined}
               style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                 padding: '9px 4px', borderRadius: '14px', border: 'none', cursor: 'pointer',
                 background: valgt ? tema.accentBg : 'transparent', fontFamily: 'inherit',
               }}
             >
-              <span style={{ fontSize: '21px', lineHeight: 1, opacity: valgt ? 1 : 0.7 }}>{s.ikon}</span>
-              <span style={{ fontSize: '11px', fontWeight: valgt ? 700 : 500, color: valgt ? tema.pillTekst : tema.subtekst }}>{s.label}</span>
+              <Ikon size={21} strokeWidth={valgt ? 2.4 : 1.9} color={valgt ? tema.pillTekst : tema.subtekst} />
+              <span style={{ fontSize: '11px', fontWeight: valgt ? 700 : 500, color: valgt ? tema.pillTekst : tema.subtekst }}>{label}</span>
             </button>
           )
         })}
