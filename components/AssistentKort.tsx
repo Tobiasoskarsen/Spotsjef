@@ -4,23 +4,19 @@ import { Pris } from '@/lib/types'
 import { VaerTime, nesteNedbor } from '@/lib/vaer'
 import { Tema } from '@/lib/theme'
 import { useBruker } from '@/lib/bruker'
-import { hentProfil, lagreProfil } from '@/lib/profil'
+import { hentProfil, lagreProfil, AssistentProfil } from '@/lib/profil'
+import AssistentOppsett from '@/components/AssistentOppsett'
 
-// Fase 1 av hverdagsassistenten.
+// Hverdagsassistenten.
 // Prinsipp: assistenten sier KUN ting den faktisk vet – fra ekte data
 // (pris/vær/klokke) eller fra valg brukeren selv har gjort. Ingen oppdiktede
 // påminnelser. Før brukeren har satt den opp, viser vi en invitasjon – ikke
-// fyllstoff. Konfig lagres foreløpig i localStorage; flyttes til Supabase-profil
-// i en senere fase (anonym konto), uten at brukeren mister noe.
+// fyllstoff. Profil lagres i Supabase (anonym konto); faller tilbake på
+// localStorage hvis Supabase ikke er konfigurert.
 
-type AssistentConfig = {
-  konfigurert: boolean
-  navn: string
-  vilStrom: boolean
-  vilVaer: boolean
-}
+type AssistentConfig = AssistentProfil & { konfigurert: boolean }
 
-const STD: AssistentConfig = { konfigurert: false, navn: '', vilStrom: true, vilVaer: true }
+const STD: AssistentConfig = { konfigurert: false, navn: '', vilStrom: true, vilVaer: true, tommedag: null }
 const LAGER_NOKKEL = 'flyt:assistent'
 
 type Props = {
@@ -46,8 +42,6 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
   const [lastet, setLastet] = useState(false)
   const [visOppsett, setVisOppsett] = useState(false)
   const [lagrer, setLagrer] = useState(false)
-  // Lokalt skjema-utkast så vi ikke lagrer før brukeren trykker «Lagre»
-  const [utkast, setUtkast] = useState<AssistentConfig>(STD)
 
   function lesLokal(): AssistentConfig | null {
     try {
@@ -87,15 +81,10 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
     return () => { aktiv = false }
   }, [brukerId, lasterBruker])
 
-  function startOppsett() {
-    setUtkast(cfg)
-    setVisOppsett(true)
-  }
-
-  async function lagre() {
-    const ny = { ...utkast, konfigurert: true }
+  async function lagreFraOppsett(p: AssistentProfil) {
+    const ny: AssistentConfig = { ...p, konfigurert: true }
     setLagrer(true)
-    if (brukerId) await lagreProfil(brukerId, ny)
+    if (brukerId) await lagreProfil(brukerId, p)
     else localStorage.setItem(LAGER_NOKKEL, JSON.stringify(ny))
     setCfg(ny)
     setLagrer(false)
@@ -114,48 +103,17 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
     textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700,
   }
 
-  // ---- 1) Oppsett-skjema (første gang via invitasjon, eller «Endre») ----
+  // ---- 1) Oppsett-veiviser (første gang via invitasjon, eller «Endre») ----
   if (visOppsett) {
-    const inputStil: React.CSSProperties = {
-      width: '100%', padding: '12px 14px', borderRadius: '14px',
-      border: `1px solid ${tema.border}`, background: tema.inputBg,
-      color: tema.tekst, fontSize: '14px', fontFamily: 'inherit', outline: 'none',
-    }
-    const Bryter = ({ paa, on, etikett, beskrivelse }: { paa: boolean; on: () => void; etikett: string; beskrivelse: string }) => (
-      <button type="button" onClick={on} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '14px', border: `1px solid ${paa ? tema.accentBg : tema.border}`, background: paa ? tema.accentBg : tema.inputBg, color: paa ? '#fff' : tema.tekst, cursor: 'pointer', fontFamily: 'inherit' }}>
-        <span>
-          <span style={{ display: 'block', fontSize: '14px', fontWeight: 700 }}>{etikett}</span>
-          <span style={{ display: 'block', fontSize: '12px', opacity: 0.85, marginTop: '2px' }}>{beskrivelse}</span>
-        </span>
-        <span style={{ fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>{paa ? 'På' : 'Av'}</span>
-      </button>
-    )
-
     return (
-      <div style={kortStil}>
-        <p style={merkelapp}>{cfg.konfigurert ? 'Rediger assistent' : 'Sett opp assistenten'}</p>
-        <div style={{ display: 'grid', gap: '14px' }}>
-          <div>
-            <label style={{ fontSize: '12px', color: tema.subtekst, fontWeight: 600, display: 'block', marginBottom: '6px' }}>Hva heter du? (valgfritt)</label>
-            <input value={utkast.navn} onChange={e => setUtkast({ ...utkast, navn: e.target.value })} placeholder="Fornavn" style={inputStil} />
-          </div>
-          <Bryter paa={utkast.vilStrom} on={() => setUtkast({ ...utkast, vilStrom: !utkast.vilStrom })} etikett="Strøm-tips" beskrivelse="Når på dagen strømmen er billigst" />
-          <Bryter paa={utkast.vilVaer} on={() => setUtkast({ ...utkast, vilVaer: !utkast.vilVaer })} etikett="Vær-tips" beskrivelse="Beskjed når regn er på vei" />
-          <p style={{ fontSize: '12px', color: tema.subtekst, margin: 0, lineHeight: 1.6 }}>
-            Påminnelser, tømmedag og mer kommer i en senere oppdatering.
-          </p>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="button" onClick={lagre} disabled={lagrer} style={{ flex: 1, padding: '12px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: lagrer ? 'default' : 'pointer', fontSize: '14px', fontWeight: 700, opacity: lagrer ? 0.7 : 1 }}>
-              {lagrer ? 'Lagrer …' : 'Lagre'}
-            </button>
-            {cfg.konfigurert && (
-              <button type="button" onClick={() => setVisOppsett(false)} style={{ padding: '12px 18px', borderRadius: '14px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.subtekst, cursor: 'pointer', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit' }}>
-                Avbryt
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <AssistentOppsett
+        start={{ navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag }}
+        onLagre={lagreFraOppsett}
+        onAvbryt={cfg.konfigurert ? () => setVisOppsett(false) : undefined}
+        erRedigering={cfg.konfigurert}
+        lagrer={lagrer}
+        tema={tema}
+      />
     )
   }
 
@@ -168,7 +126,7 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
         <p style={{ fontSize: '13px', color: tema.subtekst, margin: '0 0 16px', lineHeight: 1.6 }}>
           Ingen tilfeldige forslag – bare det som bygger på dine valg og ekte data (strøm og vær). Fortell meg litt, så samler jeg det viktigste på ett sted.
         </p>
-        <button type="button" onClick={startOppsett} style={{ padding: '12px 18px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 700 }}>
+        <button type="button" onClick={() => setVisOppsett(true)} style={{ padding: '12px 18px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 700 }}>
           Sett opp assistenten
         </button>
       </div>
@@ -186,6 +144,12 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
     if (regn) punkter.push({ emoji: '🌧️', tekst: `Regn ventet rundt kl. ${new Date(regn.tid).getHours()}:00 – ta med paraply` })
     else if (vaer.length > 0) punkter.push({ emoji: '☀️', tekst: 'Oppholdsvær de neste timene' })
   }
+  // Søppel-påminnelse – kun nær dagen, basert på din tømmedag (ingen masing ellers)
+  if (cfg.tommedag !== null) {
+    const idag = new Date().getDay()
+    if (cfg.tommedag === idag) punkter.push({ emoji: '🗑️', tekst: 'Søpla tømmes i dag – håper den er satt ut' })
+    else if (cfg.tommedag === (idag + 1) % 7) punkter.push({ emoji: '🗑️', tekst: 'Søpla tømmes i morgen – sett den ut i kveld' })
+  }
 
   return (
     <div style={kortStil}>
@@ -194,7 +158,7 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
           <p style={merkelapp}>Din assistent</p>
           <p style={{ fontSize: '18px', fontWeight: 700, color: tema.tekst, margin: 0 }}>{hilsen(cfg.navn)}</p>
         </div>
-        <button type="button" onClick={startOppsett} style={{ flexShrink: 0, padding: '8px 14px', borderRadius: '12px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.subtekst, cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'inherit' }}>
+        <button type="button" onClick={() => setVisOppsett(true)} style={{ flexShrink: 0, padding: '8px 14px', borderRadius: '12px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.subtekst, cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'inherit' }}>
           Endre
         </button>
       </div>
@@ -217,7 +181,7 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
       )}
 
       <p style={{ fontSize: '11px', color: tema.subtekst, margin: '14px 0 0', lineHeight: 1.6 }}>
-        Mer personlig hjelp – påminnelser, tømmedag og smartere brief med AI – kommer snart.
+        Snart: påminnelser via varsel og en smartere brief med AI.
       </p>
     </div>
   )

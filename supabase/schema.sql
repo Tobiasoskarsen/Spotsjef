@@ -34,8 +34,12 @@ create table if not exists profiles (
   navn        text not null default '',
   vil_strom   boolean not null default true,
   vil_vaer    boolean not null default true,
+  tommedag    smallint,                       -- ukedag søpla tømmes (0=søn..6=lør), null = ikke satt
   oppdatert   timestamptz not null default now()
 );
+
+-- For deg som alt opprettet profiles uten tommedag:
+alter table profiles add column if not exists tommedag smallint;
 
 alter table profiles enable row level security;
 
