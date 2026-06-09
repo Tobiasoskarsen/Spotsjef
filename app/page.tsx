@@ -20,9 +20,9 @@ import Alarm from '@/components/Alarm'
 import Historikk from '@/components/Historikk'
 import Kalkulator from '@/components/Kalkulator'
 import BunnMeny, { Side } from '@/components/BunnMeny'
-import { VaerTime, hentVaer, nesteNedbor } from '@/lib/vaer'
+import { VaerTime, hentVaer } from '@/lib/vaer'
 import VaerKort from '@/components/VaerKort'
-import HverdagsKort from '@/components/HverdagsKort'
+import AssistentKort from '@/components/AssistentKort'
 
 
 export default function Home() {
@@ -406,7 +406,6 @@ export default function Home() {
   const spotmerknad = tariffType === 'norgespris'
     ? 'Du bruker Norgespris på 50 øre/kWh. Spot-anbefalinger er mindre relevant.'
     : 'Spotpris vises for valgt sone og time.'
-  const nesteRegnData = nesteNedbor(vaer, 6)
 
   function visTimepris() {
     if (tariffType === 'norgespris') {
@@ -483,7 +482,7 @@ export default function Home() {
             </div>
 
             <VaerKort vaer={vaer} laster={lasterVaer} tema={tema} naavaerendePris={naavaerendePris} tariffType={tariffType} />
-            <HverdagsKort vaer={vaer} tema={tema} />
+            <AssistentKort vaer={vaer} priser={priser} tema={tema} />
 
             <div style={{ background: tema.cardBg, borderRadius: '20px', padding: '22px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
               <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>Markedsoverblikk</p>
