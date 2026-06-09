@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { Redis } from '@upstash/redis'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export type PushAbonnement = {
   sub: { endpoint: string; keys: { p256dh: string; auth: string } }
@@ -8,47 +8,72 @@ export type PushAbonnement = {
   varslet: boolean // har vi allerede varslet i denne billig-perioden?
 }
 
-// Støtter både Vercel KV- og Upstash-navngivning på miljøvariablene
-const REDIS_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
-const REDIS_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN
+// Lagring i Supabase (Postgres). Valgt fordi appen skal vokse til en
+// assistent med påminnelser/gjøremål – relasjonsdata som passer SQL.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:hei@flyt.app'
 
-const SUBS_KEY = 'flyt:abonnement'
+const TABELL = 'push_subscriptions'
 
-// Sant kun hvis alt er satt opp (nøkler + lagring). Lar appen fungere uten.
+// Sant kun hvis alt er satt opp (VAPID-nøkler + Supabase). Lar appen fungere uten.
 export function pushKonfigurert(): boolean {
-  return Boolean(REDIS_URL && REDIS_TOKEN && VAPID_PUBLIC && VAPID_PRIVATE)
+  return Boolean(SUPABASE_URL && SUPABASE_KEY && VAPID_PUBLIC && VAPID_PRIVATE)
 }
 
-let redis: Redis | null = null
-function getRedis(): Redis | null {
-  if (!REDIS_URL || !REDIS_TOKEN) return null
-  if (!redis) redis = new Redis({ url: REDIS_URL, token: REDIS_TOKEN })
-  return redis
+let db: SupabaseClient | null = null
+function getDb(): SupabaseClient | null {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null
+  if (!db) db = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } })
+  return db
 }
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
-  webpush.setVapidDetails('mailto:hei@flyt.app', VAPID_PUBLIC, VAPID_PRIVATE)
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE)
+}
+
+// En databaserad mappes til/fra PushAbonnement-formen resten av koden bruker.
+type Rad = { endpoint: string; p256dh: string; auth: string; grense: number; zone: string; varslet: boolean }
+
+function tilRad(a: PushAbonnement): Rad {
+  return {
+    endpoint: a.sub.endpoint,
+    p256dh: a.sub.keys.p256dh,
+    auth: a.sub.keys.auth,
+    grense: a.grense,
+    zone: a.zone,
+    varslet: a.varslet,
+  }
+}
+
+function fraRad(r: Rad): PushAbonnement {
+  return {
+    sub: { endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } },
+    grense: Number(r.grense) || 0,
+    zone: r.zone,
+    varslet: Boolean(r.varslet),
+  }
 }
 
 export async function lagreAbonnement(a: PushAbonnement): Promise<void> {
-  const r = getRedis()
+  const r = getDb()
   if (!r) return
-  await r.hset(SUBS_KEY, { [a.sub.endpoint]: a })
+  await r.from(TABELL).upsert(tilRad(a), { onConflict: 'endpoint' })
 }
 
 export async function slettAbonnement(endpoint: string): Promise<void> {
-  const r = getRedis()
+  const r = getDb()
   if (!r) return
-  await r.hdel(SUBS_KEY, endpoint)
+  await r.from(TABELL).delete().eq('endpoint', endpoint)
 }
 
 export async function hentAlleAbonnement(): Promise<PushAbonnement[]> {
-  const r = getRedis()
+  const r = getDb()
   if (!r) return []
-  const alle = await r.hgetall<Record<string, PushAbonnement>>(SUBS_KEY)
-  return alle ? Object.values(alle) : []
+  const { data } = await r.from(TABELL).select('*')
+  return ((data as Rad[]) ?? []).map(fraRad)
 }
 
 // Sender ett varsel. Returnerer true ved suksess. Fjerner utløpte abonnement.
