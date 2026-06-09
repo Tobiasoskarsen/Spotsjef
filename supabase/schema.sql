@@ -14,9 +14,12 @@ create table if not exists push_subscriptions (
   created_at  timestamptz not null default now()
 );
 
--- For deg som allerede opprettet tabellen uten de to nye kolonnene:
+-- For deg som allerede opprettet tabellen uten de nye kolonnene:
 alter table push_subscriptions add column if not exists grense numeric not null default 0;
 alter table push_subscriptions add column if not exists varslet boolean not null default false;
+-- Fase 6: koble abonnement til bruker (for assistent-påminnelser) + debounce
+alter table push_subscriptions add column if not exists user_id uuid;
+alter table push_subscriptions add column if not exists sopp_varslet text; -- dato (YYYY-MM-DD) sist søppel-påminnelse ble sendt
 
 -- Vi skriver kun til tabellen fra serveren (service-role-nøkkelen), så vi slår
 -- på Row Level Security uten policies. Da er tabellen låst for anon-nøkkelen i

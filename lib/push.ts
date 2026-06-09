@@ -6,6 +6,8 @@ export type PushAbonnement = {
   grense: number // øre/kWh – varsle når prisen går under
   zone: string
   varslet: boolean // har vi allerede varslet i denne billig-perioden?
+  userId?: string | null // kobler abonnementet til en bruker (assistent-påminnelser)
+  soppVarslet?: string | null // dato (YYYY-MM-DD) sist søppel-påminnelse ble sendt
 }
 
 // Lagring i Supabase (Postgres). Valgt fordi appen skal vokse til en
@@ -35,7 +37,10 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 }
 
 // En databaserad mappes til/fra PushAbonnement-formen resten av koden bruker.
-type Rad = { endpoint: string; p256dh: string; auth: string; grense: number; zone: string; varslet: boolean }
+type Rad = {
+  endpoint: string; p256dh: string; auth: string; grense: number; zone: string
+  varslet: boolean; user_id?: string | null; sopp_varslet?: string | null
+}
 
 function tilRad(a: PushAbonnement): Rad {
   return {
@@ -54,6 +59,8 @@ function fraRad(r: Rad): PushAbonnement {
     grense: Number(r.grense) || 0,
     zone: r.zone,
     varslet: Boolean(r.varslet),
+    userId: r.user_id ?? null,
+    soppVarslet: r.sopp_varslet ?? null,
   }
 }
 
@@ -74,6 +81,39 @@ export async function hentAlleAbonnement(): Promise<PushAbonnement[]> {
   if (!r) return []
   const { data } = await r.from(TABELL).select('*')
   return ((data as Rad[]) ?? []).map(fraRad)
+}
+
+// Kobler et abonnement (enhet) til en bruker. Delvis upsert: rører kun
+// user_id (+ nøkler), så grense/zone/varslet/sopp_varslet beholdes om de finnes.
+export async function koblBruker(
+  sub: { endpoint: string; keys: { p256dh: string; auth: string } },
+  userId: string,
+): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from(TABELL).upsert(
+    { endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth, user_id: userId },
+    { onConflict: 'endpoint' },
+  )
+}
+
+// Henter tømmedag per bruker (for søppel-påminnelser i cron-en).
+export async function hentTommedager(userIds: string[]): Promise<Record<string, number | null>> {
+  const r = getDb()
+  if (!r || userIds.length === 0) return {}
+  const { data } = await r.from('profiles').select('id, tommedag').in('id', userIds)
+  const kart: Record<string, number | null> = {}
+  for (const row of (data ?? []) as { id: string; tommedag: number | null }[]) {
+    kart[row.id] = row.tommedag ?? null
+  }
+  return kart
+}
+
+// Markerer at søppel-påminnelse er sendt for en gitt dato (debounce).
+export async function settSoppVarslet(endpoint: string, dato: string): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from(TABELL).update({ sopp_varslet: dato }).eq('endpoint', endpoint)
 }
 
 // Sender ett varsel. Returnerer true ved suksess. Fjerner utløpte abonnement.

@@ -6,6 +6,7 @@ import { Tema } from '@/lib/theme'
 import { useBruker } from '@/lib/bruker'
 import { hentProfil, lagreProfil, AssistentProfil } from '@/lib/profil'
 import { lagBrief } from '@/lib/assistent'
+import { koblBrukerTilPush, pushStottes } from '@/lib/pushClient'
 import AssistentOppsett from '@/components/AssistentOppsett'
 
 // Hverdagsassistenten.
@@ -42,6 +43,34 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   const [aiSammendrag, setAiSammendrag] = useState('')
   const [lasterAi, setLasterAi] = useState(false)
   const [aiFeil, setAiFeil] = useState('')
+  const [varslerPaa, setVarslerPaa] = useState(false)
+  const [varslerLaster, setVarslerLaster] = useState(false)
+  const [varslerFeil, setVarslerFeil] = useState('')
+
+  useEffect(() => {
+    setVarslerPaa(localStorage.getItem('flyt:varsler') === 'on')
+  }, [])
+
+  async function slaaPaaVarsler() {
+    if (!brukerId) {
+      setVarslerFeil('Krever innlogging (Supabase) – ikke satt opp ennå.')
+      return
+    }
+    if (!pushStottes()) {
+      setVarslerFeil('Nettleseren din støtter ikke varsler.')
+      return
+    }
+    setVarslerLaster(true)
+    setVarslerFeil('')
+    const ok = await koblBrukerTilPush(brukerId)
+    if (ok) {
+      setVarslerPaa(true)
+      localStorage.setItem('flyt:varsler', 'on')
+    } else {
+      setVarslerFeil('Du må tillate varsler for å få påminnelser.')
+    }
+    setVarslerLaster(false)
+  }
 
   function lesLokal(): AssistentConfig | null {
     try {
@@ -190,6 +219,24 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
         </p>
       )}
 
+      {cfg.tommedag !== null && (
+        varslerPaa ? (
+          <p style={{ fontSize: '12px', color: tema.subtekst, margin: '14px 0 0' }}>
+            🔔 Påminnelser er på – du får beskjed kvelden før søpla skal ut, selv når appen er lukket.
+          </p>
+        ) : (
+          <div style={{ marginTop: '14px' }}>
+            <button type="button" onClick={slaaPaaVarsler} disabled={varslerLaster} style={{ width: '100%', padding: '11px', borderRadius: '12px', border: 'none', background: tema.accentBg, color: '#fff', cursor: varslerLaster ? 'default' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', opacity: varslerLaster ? 0.7 : 1 }}>
+              {varslerLaster ? 'Slår på …' : '🔔 Slå på påminnelser'}
+            </button>
+            <p style={{ fontSize: '11px', color: tema.subtekst, margin: '8px 0 0', lineHeight: 1.5 }}>
+              Få beskjed kvelden før søpla skal ut – også når appen er lukket.
+            </p>
+            {varslerFeil && <p style={{ fontSize: '11px', color: '#d1605f', margin: '6px 0 0' }}>{varslerFeil}</p>}
+          </div>
+        )
+      )}
+
       {aiSammendrag && (
         <div style={{ marginTop: '14px', padding: '14px 16px', borderRadius: '14px', background: tema.accentBg, color: '#fff' }}>
           <p style={{ fontSize: '11px', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, opacity: 0.85 }}>✨ Dagens brief</p>
@@ -208,7 +255,7 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
       )}
 
       <p style={{ fontSize: '11px', color: tema.subtekst, margin: '14px 0 0', lineHeight: 1.6 }}>
-        Snart: påminnelser via varsel når strømmen er billig eller søpla skal ut.
+        Snart: innlogging på tvers av enheter og egne påminnelser.
       </p>
     </div>
   )

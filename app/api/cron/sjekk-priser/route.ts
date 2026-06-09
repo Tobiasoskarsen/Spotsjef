@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert } from '@/lib/push'
+import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentTommedager, settSoppVarslet } from '@/lib/push'
 import { formaterPriser, formatDato } from '@/lib/priser'
 import { ApiPris } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
+
+// Klokke i Europe/Oslo (håndterer sommertid riktig – ikke fast UTC+1/+2).
+function osloNaa(): Date {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Oslo' }))
+}
+
+// Dato N dager frem som YYYY-MM-DD (stabil nøkkel for debounce).
+function datoPluss(d: Date, dager: number): string {
+  const x = new Date(d)
+  x.setDate(x.getDate() + dager)
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+}
 
 // Henter nåværende strømpris (etter strømstøtte, øre/kWh) for en sone
 async function hentNaaPris(zone: string, naaTime: number): Promise<number | null> {
@@ -60,5 +72,30 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt })
+  // --- Assistent-påminnelser: søppel dagen før tømmedag ---
+  let sendtSoppel = 0
+  const medBruker = abonnement.filter(a => a.userId)
+  if (medBruker.length > 0) {
+    const tommedager = await hentTommedager([...new Set(medBruker.map(a => a.userId as string))])
+    const naa = osloNaa()
+    const osloTime = naa.getHours()
+    const iMorgenUkedag = (naa.getDay() + 1) % 7
+    const iMorgenDato = datoPluss(naa, 1)
+
+    // Stilletimer: ikke send mellom 22 og 07
+    if (osloTime >= 7 && osloTime < 22) {
+      for (const a of medBruker) {
+        const td = tommedager[a.userId as string]
+        if (td == null || td !== iMorgenUkedag) continue
+        if (a.soppVarslet === iMorgenDato) continue // alt varslet for denne datoen
+        const ok = await sendVarsel(a, 'Flyt — tøm søpla', 'Søpla tømmes i morgen. Husk å sette den ut i kveld.')
+        if (ok) {
+          await settSoppVarslet(a.sub.endpoint, iMorgenDato)
+          sendtSoppel++
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel })
 }

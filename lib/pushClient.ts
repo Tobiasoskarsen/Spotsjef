@@ -48,6 +48,33 @@ export async function abonnerPaaPush(grense: number, zone: string): Promise<bool
   }
 }
 
+// Slår på push og kobler enheten til brukeren (for assistent-påminnelser).
+// Returnerer true ved suksess. Trygt å kalle flere ganger (idempotent).
+export async function koblBrukerTilPush(userId: string): Promise<boolean> {
+  if (!pushStottes()) return false
+  try {
+    const tillatelse = await Notification.requestPermission()
+    if (tillatelse !== 'granted') return false
+
+    const reg = await navigator.serviceWorker.ready
+    const sub =
+      (await reg.pushManager.getSubscription()) ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64TilUint8Array(VAPID_PUBLIC as string),
+      }))
+
+    const res = await fetch('/api/push/koble-bruker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sub, userId }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 // Avslutter push-abonnementet (lokalt + på serveren).
 export async function avsluttPush(): Promise<void> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
