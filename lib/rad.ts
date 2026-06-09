@@ -1,4 +1,4 @@
-import { Pris } from './types'
+import { Pris, Apparat } from './types'
 import { VaerTime } from './vaer'
 
 export type Rad = {
@@ -50,9 +50,14 @@ function finnVindu(
  * Hver regel legger til et råd HVIS situasjonen passer.
  * Til slutt sorteres de etter prioritet og vi tar de beste.
  */
-export function lagRad(priser: Pris[], vaer: VaerTime[]): Rad[] {
+export function lagRad(priser: Pris[], vaer: VaerTime[], apparater: Apparat[] = []): Rad[] {
   const rad: Rad[] = []
   if (priser.length === 0) return rad
+
+  // Hvilke apparat-typer har brukeren? Brukes til å vise kun relevante råd.
+  const harElbil = apparater.some(a => a.ikon === '🚗' || /elbil|lading|lade/i.test(a.navn))
+  const harVaskemaskin = apparater.some(a => a.ikon === '👕' || a.ikon === '🧺' || /vaskemaskin|klesvask/i.test(a.navn))
+  const harVarmtvann = apparater.some(a => a.ikon === '🚿' || a.ikon === '🛁' || /varmtvann|bereder/i.test(a.navn))
 
   const naa = naavaerendePris(priser)
   const snitt = snittPris(priser)
@@ -86,7 +91,7 @@ export function lagRad(priser: Pris[], vaer: VaerTime[]): Rad[] {
     const oppholdsvaer = nesteTimer.every(t => t.nedbor < 0.2)
     const regnSnart = nesteTimer.slice(0, 4).find(t => t.nedbor > 0.2)
 
-    if (oppholdsvaer && billigsteTime) {
+    if (oppholdsvaer && billigsteTime && harVaskemaskin) {
       rad.push({
         emoji: '🧺',
         tittel: 'Fin dag for klesvask',
@@ -128,7 +133,7 @@ export function lagRad(priser: Pris[], vaer: VaerTime[]): Rad[] {
   // REGEL 5: Beste ladetid for elbil – billigste 3-timersvindu fremover i dag
   const kommende = priser.slice(naaTime)
   const ladevindu = finnVindu(kommende, 3)
-  if (ladevindu && ladevindu.snitt < snitt * 0.9 && naa > ladevindu.snitt * 1.05) {
+  if (harElbil && ladevindu && ladevindu.snitt < snitt * 0.9 && naa > ladevindu.snitt * 1.05) {
     const natt = erKveldEllerNatt(ladevindu.start.time)
     rad.push({
       emoji: '🚗',
@@ -141,10 +146,13 @@ export function lagRad(priser: Pris[], vaer: VaerTime[]): Rad[] {
   // REGEL 6: Tydelig pristopp – planlegg varmtvann og dusj utenom
   const toppvindu = finnVindu(priser, 3, true)
   if (toppvindu && toppvindu.snitt > snitt * 1.35) {
+    const tiltak = harVarmtvann
+      ? 'Skru ned varmtvannsberederen og vent med dusj, vask og lading til etterpå.'
+      : 'Vent med strømkrevende ting som vask, oppvask og lading til etterpå.'
     rad.push({
-      emoji: '🚿',
+      emoji: harVarmtvann ? '🚿' : '💸',
       tittel: 'Unngå pristoppen',
-      detalj: `Dyrest kl. ${toppvindu.start.time}–${toppvindu.slutt.time} (snitt ${toppvindu.snitt.toFixed(0)} øre/kWh). Skru ned varmtvannsberederen og vent med dusj, vask og lading til etterpå.`,
+      detalj: `Dyrest kl. ${toppvindu.start.time}–${toppvindu.slutt.time} (snitt ${toppvindu.snitt.toFixed(0)} øre/kWh). ${tiltak}`,
       prioritet: 55,
     })
   }

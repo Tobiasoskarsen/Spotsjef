@@ -138,7 +138,7 @@ export default function Home() {
        return () => { avbrutt = true }
      }, [zone])
 
-  const rad = lagRad(priser, vaer)
+  const rad = lagRad(priser, vaer, alleApparater)
 
   useEffect(() => {
     localStorage.setItem('dark', String(darkMode))
