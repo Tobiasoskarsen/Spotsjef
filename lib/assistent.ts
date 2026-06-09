@@ -20,10 +20,19 @@ export type AssistentKontekst = {
   priser: Pris[]
   vaer: VaerTime[]
   apparater?: Apparat[]
+  reminder?: { tekst: string; tid: string }[]
   naa?: Date
 }
 
 const UKEDAG = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
+
+// Dato i Europe/Oslo som YYYY-MM-DD (for "er dette i dag?")
+function osloDato(d: Date): string {
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Oslo' })
+}
+function osloKlokke(d: Date): string {
+  return d.toLocaleTimeString('nb-NO', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit' })
+}
 
 function snitt(priser: Pris[]): number {
   if (priser.length === 0) return 0
@@ -43,9 +52,18 @@ function billigsteVindu(priser: Pris[], lengde: number): { start: Pris; slutt: P
 }
 
 export function lagBrief(k: AssistentKontekst): BriefPunkt[] {
-  const { profil, priser, vaer, apparater = [], naa = new Date() } = k
+  const { profil, priser, vaer, apparater = [], reminder = [], naa = new Date() } = k
   const punkter: BriefPunkt[] = []
   const time = naa.getHours()
+
+  // ── Egne påminnelser som forfaller i dag ─────────────────────────────
+  const iDag = osloDato(naa)
+  for (const r of reminder) {
+    const rd = new Date(r.tid)
+    if (osloDato(rd) === iDag) {
+      punkter.push({ emoji: '📌', tekst: `${osloKlokke(rd)} – ${r.tekst}`, kilde: 'Din påminnelse', prioritet: 96 })
+    }
+  }
 
   // ── Tømmedag (din egen oppgitte vane) ────────────────────────────────
   if (profil.tommedag !== null && profil.tommedag !== undefined) {

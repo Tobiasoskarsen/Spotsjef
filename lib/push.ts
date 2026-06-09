@@ -122,6 +122,25 @@ export async function settSoppVarslet(endpoint: string, dato: string): Promise<v
   await r.from(TABELL).update({ sopp_varslet: dato }).eq('endpoint', endpoint)
 }
 
+// Egne påminnelser som har forfalt og ikke er varslet ennå.
+export type ForfaltReminder = { id: string; user_id: string; tekst: string }
+export async function hentForfalteReminder(): Promise<ForfaltReminder[]> {
+  const r = getDb()
+  if (!r) return []
+  const { data } = await r
+    .from('reminders')
+    .select('id, user_id, tekst')
+    .lte('tid', new Date().toISOString())
+    .eq('varslet', false)
+  return (data ?? []) as ForfaltReminder[]
+}
+
+export async function merkReminderVarslet(id: string): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from('reminders').update({ varslet: true }).eq('id', id)
+}
+
 // Sender ett varsel. Returnerer true ved suksess. Fjerner utløpte abonnement.
 export async function sendVarsel(a: PushAbonnement, tittel: string, tekst: string): Promise<boolean> {
   try {

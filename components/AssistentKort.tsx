@@ -5,6 +5,7 @@ import { VaerTime } from '@/lib/vaer'
 import { Tema } from '@/lib/theme'
 import { useBruker } from '@/lib/bruker'
 import { hentProfil, lagreProfil, AssistentProfil } from '@/lib/profil'
+import { hentReminder, Reminder } from '@/lib/reminders'
 import { lagBrief } from '@/lib/assistent'
 import { koblBrukerTilPush, pushStottes } from '@/lib/pushClient'
 import AssistentOppsett from '@/components/AssistentOppsett'
@@ -47,9 +48,18 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   const [varslerLaster, setVarslerLaster] = useState(false)
   const [varslerFeil, setVarslerFeil] = useState('')
 
+  const [reminder, setReminder] = useState<Reminder[]>([])
+
   useEffect(() => {
     setVarslerPaa(localStorage.getItem('flyt:varsler') === 'on')
   }, [])
+
+  useEffect(() => {
+    if (!brukerId) { setReminder([]); return }
+    let aktiv = true
+    hentReminder(brukerId).then(r => { if (aktiv) setReminder(r) })
+    return () => { aktiv = false }
+  }, [brukerId])
 
   async function slaaPaaVarsler() {
     if (!brukerId) {
@@ -184,7 +194,7 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
 
   // ---- 3) Konfigurert: ærlig brief fra regel-motoren (hvert punkt har kilde) ----
   const profil: AssistentProfil = { navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag, stilleFra: cfg.stilleFra, stilleTil: cfg.stilleTil }
-  const punkter = lagBrief({ profil, priser, vaer, apparater }).slice(0, 4)
+  const punkter = lagBrief({ profil, priser, vaer, apparater, reminder }).slice(0, 5)
   const venterData = (cfg.vilStrom && priser.length === 0) || (cfg.vilVaer && vaer.length === 0)
 
   return (

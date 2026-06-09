@@ -60,3 +60,31 @@ create policy "egen profil opprett" on profiles for insert with check (auth.uid(
 
 drop policy if exists "egen profil oppdater" on profiles;
 create policy "egen profil oppdater" on profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+
+
+-- ── Påminnelser / egen kalender ────────────────────────────────────────────
+-- Brukerens egne hendelser/påminnelser. Vises i briefen og pushes ved forfall.
+create table if not exists reminders (
+  id        uuid primary key default gen_random_uuid(),
+  user_id   uuid not null references auth.users(id) on delete cascade,
+  tekst     text not null,
+  tid       timestamptz not null,           -- når påminnelsen forfaller
+  varslet   boolean not null default false, -- har vi pushet den?
+  opprettet timestamptz not null default now()
+);
+
+create index if not exists reminders_bruker_tid on reminders (user_id, tid);
+
+alter table reminders enable row level security;
+
+drop policy if exists "egne reminders les" on reminders;
+create policy "egne reminders les" on reminders for select using (auth.uid() = user_id);
+
+drop policy if exists "egne reminders opprett" on reminders;
+create policy "egne reminders opprett" on reminders for insert with check (auth.uid() = user_id);
+
+drop policy if exists "egne reminders oppdater" on reminders;
+create policy "egne reminders oppdater" on reminders for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "egne reminders slett" on reminders;
+create policy "egne reminders slett" on reminders for delete using (auth.uid() = user_id);

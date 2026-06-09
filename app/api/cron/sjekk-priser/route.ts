@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet } from '@/lib/push'
+import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet } from '@/lib/push'
 import { formaterPriser, formatDato } from '@/lib/priser'
 import { ApiPris } from '@/lib/types'
 
@@ -100,5 +100,29 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel })
+  // --- Egne påminnelser som har forfalt ---
+  // Eksplisitte, tidsbestemte påminnelser sendes uavhengig av stilletimer
+  // (brukeren valgte selv tidspunktet).
+  let sendtReminder = 0
+  const forfalte = await hentForfalteReminder()
+  if (forfalte.length > 0) {
+    const subsPerBruker: Record<string, typeof abonnement> = {}
+    for (const a of abonnement) {
+      if (a.userId) (subsPerBruker[a.userId] ??= []).push(a)
+    }
+    for (const rem of forfalte) {
+      const subs = subsPerBruker[rem.user_id]
+      if (!subs || subs.length === 0) continue // ingen enhet å varsle ennå
+      let nadd = false
+      for (const a of subs) {
+        if (await sendVarsel(a, 'Flyt — påminnelse', rem.tekst)) nadd = true
+      }
+      if (nadd) {
+        await merkReminderVarslet(rem.id)
+        sendtReminder++
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder })
 }
