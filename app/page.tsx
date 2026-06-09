@@ -15,7 +15,6 @@ import PrisGraf from '@/components/PrisGraf'
 import ApparatVelger from '@/components/ApparatVelger'
 import AiInnsikt from '@/components/AiInnsikt'
 import Alarm from '@/components/Alarm'
-import Historikk from '@/components/Historikk'
 import Kalkulator from '@/components/Kalkulator'
 import BunnMeny, { Side } from '@/components/BunnMeny'
 import { VaerTime, hentVaer } from '@/lib/vaer'
@@ -29,7 +28,7 @@ import Intro from '@/components/Intro'
 export default function Home() {
   const [priser, setPriser] = useState<Pris[]>([])
   const [morgendagPriser, setMorgendagPriser] = useState<Pris[]>([])
-  const [historikk, setHistorikk] = useState<HistorikkPunkt[]>([])
+  const [, setHistorikk] = useState<HistorikkPunkt[]>([])
   const [zone, setZone] = useState('NO1')
   const [valgtApparat, setValgtApparat] = useState<Apparat>(APPARATER[0])
   const [anbefaling, setAnbefaling] = useState<Anbefaling | null>(null)
@@ -268,7 +267,7 @@ export default function Home() {
       if (!Array.isArray(data) || data.length === 0) {
         throw new Error('Fant ingen treff.')
       }
-      const match = data[0] as any
+      const match = data[0] as { lat: string; lon: string; display_name?: string; address?: Record<string, string> }
       const lat = parseFloat(match.lat)
       const lon = parseFloat(match.lon)
       if (Number.isNaN(lat) || Number.isNaN(lon)) {
@@ -408,7 +407,6 @@ export default function Home() {
   const prisNaa = tariffType === 'norgespris' ? norgesprisOre : naavaerendePris + nettleieOre
   const prisKortDisplay = visKr ? (prisNaa / 100).toFixed(2) : prisNaa.toFixed(0)
   const prisKortEnhet = visKr ? 'kr/kWh' : 'øre/kWh'
-  const prisKortTittel = tariffType === 'norgespris' ? 'Fastpris nå' : 'Nåværende pris'
   const spotmerknad = tariffType === 'norgespris'
     ? 'Du bruker Norgespris på 50 øre/kWh. Spot-anbefalinger er mindre relevant.'
     : 'Spotpris vises for valgt sone og time.'
