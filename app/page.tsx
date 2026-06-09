@@ -482,7 +482,7 @@ export default function Home() {
             </div>
 
             <VaerKort vaer={vaer} laster={lasterVaer} tema={tema} naavaerendePris={naavaerendePris} tariffType={tariffType} />
-            <AssistentKort vaer={vaer} priser={priser} tema={tema} />
+            <AssistentKort vaer={vaer} priser={priser} apparater={alleApparater} tema={tema} />
 
             <div style={{ background: tema.cardBg, borderRadius: '20px', padding: '22px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
               <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>Markedsoverblikk</p>

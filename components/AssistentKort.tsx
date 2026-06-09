@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Pris } from '@/lib/types'
-import { VaerTime, nesteNedbor } from '@/lib/vaer'
+import { Pris, Apparat } from '@/lib/types'
+import { VaerTime } from '@/lib/vaer'
 import { Tema } from '@/lib/theme'
 import { useBruker } from '@/lib/bruker'
 import { hentProfil, lagreProfil, AssistentProfil } from '@/lib/profil'
+import { lagBrief } from '@/lib/assistent'
 import AssistentOppsett from '@/components/AssistentOppsett'
 
 // Hverdagsassistenten.
@@ -22,6 +23,7 @@ const LAGER_NOKKEL = 'flyt:assistent'
 type Props = {
   vaer: VaerTime[]
   priser: Pris[]
+  apparater?: Apparat[]
   tema: Tema
 }
 
@@ -31,12 +33,7 @@ function hilsen(navn: string): string {
   return navn.trim() ? `${tid}, ${navn.trim()}` : tid
 }
 
-function billigsteTime(priser: Pris[]): Pris | null {
-  if (priser.length === 0) return null
-  return [...priser].sort((a, b) => a.pris - b.pris)[0]
-}
-
-export default function AssistentKort({ vaer, priser, tema }: Props) {
+export default function AssistentKort({ vaer, priser, apparater = [], tema }: Props) {
   const { brukerId, laster: lasterBruker } = useBruker()
   const [cfg, setCfg] = useState<AssistentConfig>(STD)
   const [lastet, setLastet] = useState(false)
@@ -133,23 +130,10 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
     )
   }
 
-  // ---- 3) Konfigurert: ærlig brief basert på ekte data + valgene dine ----
-  const billig = cfg.vilStrom ? billigsteTime(priser) : null
-  const regn = cfg.vilVaer ? nesteNedbor(vaer, 6) : null
+  // ---- 3) Konfigurert: ærlig brief fra regel-motoren (hvert punkt har kilde) ----
+  const profil: AssistentProfil = { navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag }
+  const punkter = lagBrief({ profil, priser, vaer, apparater }).slice(0, 4)
   const venterData = (cfg.vilStrom && priser.length === 0) || (cfg.vilVaer && vaer.length === 0)
-
-  const punkter: { emoji: string; tekst: string }[] = []
-  if (billig) punkter.push({ emoji: '💡', tekst: `Billigst strøm kl. ${billig.time} (${billig.pris.toFixed(0)} øre/kWh)` })
-  if (cfg.vilVaer) {
-    if (regn) punkter.push({ emoji: '🌧️', tekst: `Regn ventet rundt kl. ${new Date(regn.tid).getHours()}:00 – ta med paraply` })
-    else if (vaer.length > 0) punkter.push({ emoji: '☀️', tekst: 'Oppholdsvær de neste timene' })
-  }
-  // Søppel-påminnelse – kun nær dagen, basert på din tømmedag (ingen masing ellers)
-  if (cfg.tommedag !== null) {
-    const idag = new Date().getDay()
-    if (cfg.tommedag === idag) punkter.push({ emoji: '🗑️', tekst: 'Søpla tømmes i dag – håper den er satt ut' })
-    else if (cfg.tommedag === (idag + 1) % 7) punkter.push({ emoji: '🗑️', tekst: 'Søpla tømmes i morgen – sett den ut i kveld' })
-  }
 
   return (
     <div style={kortStil}>
@@ -168,9 +152,12 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
       ) : punkter.length > 0 ? (
         <div style={{ display: 'grid', gap: '10px' }}>
           {punkter.map((p, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: tema.inputBg, borderRadius: '14px', padding: '12px 14px' }}>
-              <span style={{ fontSize: '18px', lineHeight: 1 }}>{p.emoji}</span>
-              <span style={{ fontSize: '14px', color: tema.tekst, lineHeight: 1.4 }}>{p.tekst}</span>
+            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', background: tema.inputBg, borderRadius: '14px', padding: '12px 14px' }}>
+              <span style={{ fontSize: '18px', lineHeight: 1.3 }}>{p.emoji}</span>
+              <span>
+                <span style={{ display: 'block', fontSize: '14px', color: tema.tekst, lineHeight: 1.4 }}>{p.tekst}</span>
+                <span style={{ display: 'block', fontSize: '11px', color: tema.subtekst, marginTop: '3px' }}>Kilde: {p.kilde}</span>
+              </span>
             </div>
           ))}
         </div>
