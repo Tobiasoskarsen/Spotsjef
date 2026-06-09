@@ -20,21 +20,21 @@ export type Tema = {
 export function lagTema(darkMode: boolean): Tema {
   return darkMode
     ? {
-        bg: '#080b11',
+        bg: '#0f1320',
         bgGradient:
-          'radial-gradient(1100px 560px at 50% -8%, #122438 0%, #0a1019 52%, #06080d 100%)',
-        cardBg: '#111824',
-        border: 'rgba(255,255,255,0.07)',
-        tekst: '#e9eef6',
-        subtekst: '#828da2',
-        inputBg: '#0c121c',
-        accent: '#3b9eff',
-        accentBg: 'rgba(59,158,255,0.14)',
-        accentGradient: 'linear-gradient(135deg, #2b8fff 0%, #2bd4b0 100%)',
-        pillBg: 'rgba(59,158,255,0.15)',
-        pillTekst: '#86c8ff',
-        skygge: '0 1px 2px rgba(0,0,0,0.40), 0 10px 28px rgba(0,0,0,0.42)',
-        skyggeHero: '0 2px 6px rgba(0,0,0,0.42), 0 22px 52px rgba(2,10,22,0.55)',
+          'radial-gradient(1200px 640px at 50% -12%, #1d2740 0%, #141a28 50%, #0e121c 100%)',
+        cardBg: '#1a2132',
+        border: 'rgba(255,255,255,0.06)',
+        tekst: '#e8ecf5',
+        subtekst: '#97a1b6',
+        inputBg: '#141a28',
+        accent: '#5aa6f5',
+        accentBg: 'rgba(90,166,245,0.15)',
+        accentGradient: 'linear-gradient(135deg, #4a97f0 0%, #38cdb2 100%)',
+        pillBg: 'rgba(90,166,245,0.16)',
+        pillTekst: '#9ccbff',
+        skygge: '0 1px 2px rgba(0,0,0,0.26), 0 10px 26px rgba(0,0,0,0.30)',
+        skyggeHero: '0 2px 8px rgba(0,0,0,0.30), 0 24px 54px rgba(8,14,28,0.46)',
       }
     : {
         bg: '#eaeef5',
