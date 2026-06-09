@@ -11,6 +11,7 @@ import PrisTicker from '@/components/PrisTicker'
 import DagsOppsummering from '@/components/DagsOppsummering'
 import PrisInnstillinger from '@/components/PrisInnstillinger'
 import FlytLogo from '@/components/FlytLogo'
+import { abonnerPaaPush, avsluttPush, pushStottes } from '@/lib/pushClient'
 import PrisGraf from '@/components/PrisGraf'
 import ApparatVelger from '@/components/ApparatVelger'
 import AiInnsikt from '@/components/AiInnsikt'
@@ -45,7 +46,6 @@ export default function Home() {
   const [alarmAktiv, setAlarmAktiv] = useState(false)
   const [aiInnsikt, setAiInnsikt] = useState('')
   const [lasterAI, setLasterAI] = useState(false)
-  const [varslerAktivert, setVarslerAktivert] = useState(false)
   const [side, setSide] = useState<Side>('hjem')
   const [frist, setFrist] = useState('')
   const [nettleie, setNettleie] = useState('')
@@ -64,6 +64,8 @@ export default function Home() {
     // Mørk modus er standard (matcher Flyt-logoen); kun eksplisitt 'false' gir lys
     setDarkMode(localStorage.getItem('dark') !== 'false')
     setNettleie(localStorage.getItem('nettleie') || '')
+    setAlarmGrense(localStorage.getItem('alarmGrense') || '')
+    setAlarmAktiv(localStorage.getItem('alarmAktiv') === 'true')
     // Last inn brukerens apparatliste. Nytt format: HELE lista under 'apparater'
     // (brukeren kan endre/slette alt). Eldre format ('egneApparater') hadde kun
     // egne apparater i tillegg til standardlista – migrer det over.
@@ -152,6 +154,20 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('nettleie', nettleie)
   }, [nettleie])
+
+  useEffect(() => {
+    localStorage.setItem('alarmGrense', alarmGrense)
+    localStorage.setItem('alarmAktiv', String(alarmAktiv))
+  }, [alarmGrense, alarmAktiv])
+
+  // Hold push-abonnementet på serveren i synk når grense/sone endres
+  useEffect(() => {
+    if (!alarmAktiv || !pushStottes()) return
+    const t = setTimeout(() => {
+      abonnerPaaPush(parseFloat(alarmGrense) || 0, zone)
+    }, 800)
+    return () => clearTimeout(t)
+  }, [alarmGrense, zone, alarmAktiv])
 
   useEffect(() => {
     const data = visIdag ? priser : morgendagPriser
@@ -278,9 +294,20 @@ export default function Home() {
     setTimeout(() => setDelt(false), 2000)
   }
 
-  async function aktiverVarsler() {
-    const tillatelse = await Notification.requestPermission()
-    setVarslerAktivert(tillatelse === 'granted')
+  // Slår alarmen av/på. Abonnerer på ekte bakgrunns-push hvis mulig,
+  // ellers faller vi tilbake på varsel mens appen er åpen.
+  async function vekslAlarm() {
+    if (alarmAktiv) {
+      setAlarmAktiv(false)
+      avsluttPush()
+      return
+    }
+    if (pushStottes()) {
+      await abonnerPaaPush(parseFloat(alarmGrense) || 0, zone)
+    } else if (typeof Notification !== 'undefined') {
+      await Notification.requestPermission()
+    }
+    setAlarmAktiv(true)
   }
 
   const visData = visIdag ? priser : morgendagPriser
@@ -406,10 +433,7 @@ export default function Home() {
             alarmGrense={alarmGrense}
             onEndreGrense={setAlarmGrense}
             alarmAktiv={alarmAktiv}
-            onToggle={() => {
-              if (!varslerAktivert) aktiverVarsler()
-              setAlarmAktiv(!alarmAktiv)
-            }}
+            onToggle={vekslAlarm}
             tema={tema}
           />
         </>

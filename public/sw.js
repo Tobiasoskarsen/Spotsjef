@@ -41,3 +41,34 @@ self.addEventListener('fetch', (event) => {
       ),
   )
 })
+
+// Push-varsel mottatt fra serveren – vis det (virker selv når appen er lukket)
+self.addEventListener('push', (event) => {
+  let data = { title: 'Flyt', body: 'Billig strøm nå!' }
+  try {
+    if (event.data) data = event.data.json()
+  } catch {
+    // Ugyldig payload – bruk standardtekst
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Flyt', {
+      body: data.body || '',
+      icon: '/flyt-icon.svg',
+      badge: '/flyt-icon.svg',
+      tag: 'flyt-pris',
+      lang: 'no',
+    }),
+  )
+})
+
+// Klikk på varselet -> åpne/fokuser appen
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const apent = clients.find((c) => 'focus' in c)
+      if (apent) return apent.focus()
+      return self.clients.openWindow('/')
+    }),
+  )
+})
