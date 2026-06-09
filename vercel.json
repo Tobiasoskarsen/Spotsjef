@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/sjekk-priser",
-      "schedule": "0 * * * *"
+      "schedule": "0 16 * * *"
     }
   ]
 }
