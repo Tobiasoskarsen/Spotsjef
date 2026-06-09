@@ -97,6 +97,23 @@ export default function AssistentOppsett({ start, onLagre, onAvbryt, erRedigerin
     </div>
   )
 
+  const timeValg = (verdi: number, on: (v: number) => void) => (
+    <select value={verdi} onChange={e => on(Number(e.target.value))} style={{ ...inputStil, width: 'auto', padding: '10px 12px' }}>
+      {Array.from({ length: 24 }, (_, h) => (
+        <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+      ))}
+    </select>
+  )
+
+  const StilletidFelt = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: '13px', color: tema.subtekst }}>Fra</span>
+      {timeValg(p.stilleFra, v => setP({ ...p, stilleFra: v }))}
+      <span style={{ fontSize: '13px', color: tema.subtekst }}>til</span>
+      {timeValg(p.stilleTil, v => setP({ ...p, stilleTil: v }))}
+    </div>
+  )
+
   // ── Redigering: alt på én side ─────────────────────────────────────
   if (erRedigering) {
     return (
@@ -111,6 +128,11 @@ export default function AssistentOppsett({ start, onLagre, onAvbryt, erRedigerin
           <div>
             <p style={{ fontSize: '13px', color: tema.tekst, fontWeight: 700, margin: '0 0 8px' }}>Når tømmes søpla hos deg?</p>
             {TommedagFelt}
+          </div>
+          <div>
+            <p style={{ fontSize: '13px', color: tema.tekst, fontWeight: 700, margin: '0 0 4px' }}>Ikke forstyrr</p>
+            <p style={{ fontSize: '12px', color: tema.subtekst, margin: '0 0 8px' }}>Ingen varsler i dette tidsrommet.</p>
+            {StilletidFelt}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="button" onClick={() => onLagre(p)} disabled={lagrer} style={{ ...primKnapp, flex: 1 }}>{lagrer ? 'Lagrer …' : 'Lagre'}</button>

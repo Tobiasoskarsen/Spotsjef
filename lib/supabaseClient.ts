@@ -13,7 +13,8 @@ export function getSupabase(): SupabaseClient | null {
   if (!URL || !ANON) return null
   if (!klient) {
     klient = createClient(URL, ANON, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      // detectSessionInUrl: fanger opp magic-link/OAuth-retur i URL-en
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     })
   }
   return klient

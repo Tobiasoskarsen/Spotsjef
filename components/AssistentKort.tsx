@@ -18,7 +18,7 @@ import AssistentOppsett from '@/components/AssistentOppsett'
 
 type AssistentConfig = AssistentProfil & { konfigurert: boolean }
 
-const STD: AssistentConfig = { konfigurert: false, navn: '', vilStrom: true, vilVaer: true, tommedag: null }
+const STD: AssistentConfig = { konfigurert: false, navn: '', vilStrom: true, vilVaer: true, tommedag: null, stilleFra: 22, stilleTil: 7 }
 const LAGER_NOKKEL = 'flyt:assistent'
 
 type Props = {
@@ -156,7 +156,7 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   if (visOppsett) {
     return (
       <AssistentOppsett
-        start={{ navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag }}
+        start={{ navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag, stilleFra: cfg.stilleFra, stilleTil: cfg.stilleTil }}
         onLagre={lagreFraOppsett}
         onAvbryt={cfg.konfigurert ? () => setVisOppsett(false) : undefined}
         erRedigering={cfg.konfigurert}
@@ -183,7 +183,7 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   }
 
   // ---- 3) Konfigurert: ærlig brief fra regel-motoren (hvert punkt har kilde) ----
-  const profil: AssistentProfil = { navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag }
+  const profil: AssistentProfil = { navn: cfg.navn, vilStrom: cfg.vilStrom, vilVaer: cfg.vilVaer, tommedag: cfg.tommedag, stilleFra: cfg.stilleFra, stilleTil: cfg.stilleTil }
   const punkter = lagBrief({ profil, priser, vaer, apparater }).slice(0, 4)
   const venterData = (cfg.vilStrom && priser.length === 0) || (cfg.vilVaer && vaer.length === 0)
 

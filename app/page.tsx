@@ -23,6 +23,7 @@ import BunnMeny, { Side } from '@/components/BunnMeny'
 import { VaerTime, hentVaer } from '@/lib/vaer'
 import VaerKort from '@/components/VaerKort'
 import AssistentKort from '@/components/AssistentKort'
+import Konto from '@/components/Konto'
 
 
 export default function Home() {
@@ -630,6 +631,8 @@ export default function Home() {
 
       {side === 'mer' && (
         <>
+          <Konto tema={tema} />
+
           <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '18px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
             <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Din sone og tariff</p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>

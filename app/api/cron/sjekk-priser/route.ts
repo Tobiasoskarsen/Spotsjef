@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentTommedager, settSoppVarslet } from '@/lib/push'
+import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet } from '@/lib/push'
 import { formaterPriser, formatDato } from '@/lib/priser'
 import { ApiPris } from '@/lib/types'
 
@@ -15,6 +15,11 @@ function datoPluss(d: Date, dager: number): string {
   const x = new Date(d)
   x.setDate(x.getDate() + dager)
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+}
+
+// Er klokketimen innenfor brukerens stilletimer? (vinduet kan krysse midnatt)
+function erStilletid(time: number, fra: number, til: number): boolean {
+  return fra <= til ? time >= fra && time < til : time >= fra || time < til
 }
 
 // Henter nåværende strømpris (etter strømstøtte, øre/kWh) for en sone
@@ -76,23 +81,21 @@ export async function GET(req: NextRequest) {
   let sendtSoppel = 0
   const medBruker = abonnement.filter(a => a.userId)
   if (medBruker.length > 0) {
-    const tommedager = await hentTommedager([...new Set(medBruker.map(a => a.userId as string))])
+    const profiler = await hentVarselProfiler([...new Set(medBruker.map(a => a.userId as string))])
     const naa = osloNaa()
     const osloTime = naa.getHours()
     const iMorgenUkedag = (naa.getDay() + 1) % 7
     const iMorgenDato = datoPluss(naa, 1)
 
-    // Stilletimer: ikke send mellom 22 og 07
-    if (osloTime >= 7 && osloTime < 22) {
-      for (const a of medBruker) {
-        const td = tommedager[a.userId as string]
-        if (td == null || td !== iMorgenUkedag) continue
-        if (a.soppVarslet === iMorgenDato) continue // alt varslet for denne datoen
-        const ok = await sendVarsel(a, 'Flyt — tøm søpla', 'Søpla tømmes i morgen. Husk å sette den ut i kveld.')
-        if (ok) {
-          await settSoppVarslet(a.sub.endpoint, iMorgenDato)
-          sendtSoppel++
-        }
+    for (const a of medBruker) {
+      const p = profiler[a.userId as string]
+      if (!p || p.tommedag == null || p.tommedag !== iMorgenUkedag) continue
+      if (a.soppVarslet === iMorgenDato) continue // alt varslet for denne datoen
+      if (erStilletid(osloTime, p.stilleFra, p.stilleTil)) continue // respekter stilletimer
+      const ok = await sendVarsel(a, 'Flyt — tøm søpla', 'Søpla tømmes i morgen. Husk å sette den ut i kveld.')
+      if (ok) {
+        await settSoppVarslet(a.sub.endpoint, iMorgenDato)
+        sendtSoppel++
       }
     }
   }

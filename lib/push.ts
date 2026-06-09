@@ -97,14 +97,20 @@ export async function koblBruker(
   )
 }
 
-// Henter tømmedag per bruker (for søppel-påminnelser i cron-en).
-export async function hentTommedager(userIds: string[]): Promise<Record<string, number | null>> {
+export type VarselProfil = { tommedag: number | null; stilleFra: number; stilleTil: number }
+
+// Henter varsel-relevant profil per bruker (tømmedag + stilletimer) for cron-en.
+export async function hentVarselProfiler(userIds: string[]): Promise<Record<string, VarselProfil>> {
   const r = getDb()
   if (!r || userIds.length === 0) return {}
-  const { data } = await r.from('profiles').select('id, tommedag').in('id', userIds)
-  const kart: Record<string, number | null> = {}
-  for (const row of (data ?? []) as { id: string; tommedag: number | null }[]) {
-    kart[row.id] = row.tommedag ?? null
+  const { data } = await r.from('profiles').select('id, tommedag, stille_fra, stille_til').in('id', userIds)
+  const kart: Record<string, VarselProfil> = {}
+  for (const row of (data ?? []) as { id: string; tommedag: number | null; stille_fra: number | null; stille_til: number | null }[]) {
+    kart[row.id] = {
+      tommedag: row.tommedag ?? null,
+      stilleFra: row.stille_fra ?? 22,
+      stilleTil: row.stille_til ?? 7,
+    }
   }
   return kart
 }

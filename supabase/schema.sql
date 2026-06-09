@@ -38,11 +38,16 @@ create table if not exists profiles (
   vil_strom   boolean not null default true,
   vil_vaer    boolean not null default true,
   tommedag    smallint,                       -- ukedag søpla tømmes (0=søn..6=lør), null = ikke satt
+  stille_fra  smallint not null default 22,   -- stilletimer: varsler ikke fra denne timen
+  stille_til  smallint not null default 7,    -- stilletimer: varsler ikke til denne timen
   oppdatert   timestamptz not null default now()
 );
 
--- For deg som alt opprettet profiles uten tommedag:
+-- For deg som alt opprettet profiles uten de nyere kolonnene:
 alter table profiles add column if not exists tommedag smallint;
+-- Fase 7: stilletimer (når varsler IKKE skal sendes)
+alter table profiles add column if not exists stille_fra smallint not null default 22;
+alter table profiles add column if not exists stille_til smallint not null default 7;
 
 alter table profiles enable row level security;
 
