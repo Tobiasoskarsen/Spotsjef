@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { Pris } from '@/lib/types'
 import { VaerTime, nesteNedbor } from '@/lib/vaer'
 import { Tema } from '@/lib/theme'
+import { useBruker } from '@/lib/bruker'
+import { hentProfil, lagreProfil } from '@/lib/profil'
 
 // Fase 1 av hverdagsassistenten.
 // Prinsipp: assistenten sier KUN ting den faktisk vet – fra ekte data
@@ -39,31 +41,64 @@ function billigsteTime(priser: Pris[]): Pris | null {
 }
 
 export default function AssistentKort({ vaer, priser, tema }: Props) {
+  const { brukerId, laster: lasterBruker } = useBruker()
   const [cfg, setCfg] = useState<AssistentConfig>(STD)
   const [lastet, setLastet] = useState(false)
   const [visOppsett, setVisOppsett] = useState(false)
+  const [lagrer, setLagrer] = useState(false)
   // Lokalt skjema-utkast så vi ikke lagrer før brukeren trykker «Lagre»
   const [utkast, setUtkast] = useState<AssistentConfig>(STD)
 
-  useEffect(() => {
+  function lesLokal(): AssistentConfig | null {
     try {
       const lagret = localStorage.getItem(LAGER_NOKKEL)
-      if (lagret) setCfg({ ...STD, ...JSON.parse(lagret) })
+      if (lagret) return { ...STD, ...JSON.parse(lagret) }
     } catch {
-      // ugyldig lagret data – bruk standard
+      // ugyldig lagret data
     }
-    setLastet(true)
-  }, [])
+    return null
+  }
+
+  // Last profil: Supabase er fasit når brukeren er innlogget (anonymt).
+  // Finnes ingen sky-profil, migreres et evt. tidligere localStorage-oppsett opp.
+  // Uten Supabase/innlogging faller vi pent tilbake på localStorage.
+  useEffect(() => {
+    if (lasterBruker) return
+    let aktiv = true
+    ;(async () => {
+      if (brukerId) {
+        const p = await hentProfil(brukerId)
+        if (p) {
+          if (aktiv) { setCfg({ ...p, konfigurert: true }); setLastet(true) }
+          return
+        }
+        const lokal = lesLokal()
+        if (lokal?.konfigurert) {
+          await lagreProfil(brukerId, lokal) // engangsmigrering til skyen
+          if (aktiv) { setCfg(lokal); setLastet(true) }
+          return
+        }
+        if (aktiv) { setCfg(STD); setLastet(true) }
+        return
+      }
+      const lokal = lesLokal()
+      if (aktiv) { if (lokal) setCfg(lokal); setLastet(true) }
+    })()
+    return () => { aktiv = false }
+  }, [brukerId, lasterBruker])
 
   function startOppsett() {
     setUtkast(cfg)
     setVisOppsett(true)
   }
 
-  function lagre() {
+  async function lagre() {
     const ny = { ...utkast, konfigurert: true }
+    setLagrer(true)
+    if (brukerId) await lagreProfil(brukerId, ny)
+    else localStorage.setItem(LAGER_NOKKEL, JSON.stringify(ny))
     setCfg(ny)
-    localStorage.setItem(LAGER_NOKKEL, JSON.stringify(ny))
+    setLagrer(false)
     setVisOppsett(false)
   }
 
@@ -110,8 +145,8 @@ export default function AssistentKort({ vaer, priser, tema }: Props) {
             Påminnelser, tømmedag og mer kommer i en senere oppdatering.
           </p>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="button" onClick={lagre} style={{ flex: 1, padding: '12px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 700 }}>
-              Lagre
+            <button type="button" onClick={lagre} disabled={lagrer} style={{ flex: 1, padding: '12px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: lagrer ? 'default' : 'pointer', fontSize: '14px', fontWeight: 700, opacity: lagrer ? 0.7 : 1 }}>
+              {lagrer ? 'Lagrer …' : 'Lagre'}
             </button>
             {cfg.konfigurert && (
               <button type="button" onClick={() => setVisOppsett(false)} style={{ padding: '12px 18px', borderRadius: '14px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.subtekst, cursor: 'pointer', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit' }}>

@@ -22,3 +22,29 @@ alter table push_subscriptions add column if not exists varslet boolean not null
 -- på Row Level Security uten policies. Da er tabellen låst for anon-nøkkelen i
 -- nettleseren, mens service-role bypasser RLS.
 alter table push_subscriptions enable row level security;
+
+
+-- ── Brukerprofiler (assistent-innstillinger) ───────────────────────────────
+-- Én rad per bruker (id = auth-bruker). Leses/skrives fra nettleseren med
+-- anon-nøkkelen, så her TRENGER vi RLS-policies slik at hver bruker kun ser og
+-- endrer SIN egen rad. Krever at "Anonymous sign-ins" er skrudd på i Supabase
+-- (Authentication → Sign In / Providers → Anonymous).
+create table if not exists profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  navn        text not null default '',
+  vil_strom   boolean not null default true,
+  vil_vaer    boolean not null default true,
+  oppdatert   timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+
+-- Policies: kun din egen rad (auth.uid() = id). drop+create for idempotens.
+drop policy if exists "egen profil les" on profiles;
+create policy "egen profil les" on profiles for select using (auth.uid() = id);
+
+drop policy if exists "egen profil opprett" on profiles;
+create policy "egen profil opprett" on profiles for insert with check (auth.uid() = id);
+
+drop policy if exists "egen profil oppdater" on profiles;
+create policy "egen profil oppdater" on profiles for update using (auth.uid() = id) with check (auth.uid() = id);
