@@ -23,6 +23,7 @@ import VaerKort from '@/components/VaerKort'
 import AssistentKort from '@/components/AssistentKort'
 import ReminderKort from '@/components/ReminderKort'
 import Konto from '@/components/Konto'
+import Intro from '@/components/Intro'
 
 
 export default function Home() {
@@ -57,10 +58,16 @@ export default function Home() {
   const [aiInnsikt, setAiInnsikt] = useState('')
   const [lasterAI, setLasterAI] = useState(false)
   const [side, setSide] = useState<Side>('hjem')
+  const [visIntro, setVisIntro] = useState(false)
   const [frist, setFrist] = useState('')
   const [nettleie, setNettleie] = useState('')
   const [vaer, setVaer] = useState<VaerTime[]>([])
   const [lasterVaer, setLasterVaer] = useState(true)
+
+  // Vis introen kun første gang (til man trykker «Kom i gang»)
+  useEffect(() => {
+    if (localStorage.getItem('flyt:introSett') !== '1') setVisIntro(true)
+  }, [])
 
   const tema = lagTema(darkMode)
   const naavaerendePris = priser[new Date().getHours()]?.pris ?? 0
@@ -416,6 +423,8 @@ export default function Home() {
   }
 
   return (
+   <>
+    {visIntro && <Intro tema={tema} onStart={() => { localStorage.setItem('flyt:introSett', '1'); setVisIntro(false) }} />}
     <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 104px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -744,5 +753,6 @@ export default function Home() {
 
       <BunnMeny aktiv={side} onBytt={setSide} tema={tema} />
     </main>
+   </>
   )
 }
