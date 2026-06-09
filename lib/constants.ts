@@ -48,7 +48,6 @@ const COUNTY_TO_ZONE: Record<string, string> = {
   'Troms og Finnmark': 'NO4',
   'Aust-Agder': 'NO2',
   'Vest-Agder': 'NO2',
-  'Møre og Romsdal': 'NO3',
   'Sogn og Fjordane': 'NO5',
   Hordaland: 'NO5',
 }

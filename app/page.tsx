@@ -545,18 +545,12 @@ export default function Home() {
       {side === 'apparater' && (
         <>
           <div style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
-            <PrisTicker
-              naavaerendePris={naavaerendePris}
-              animertPris={animertPris}
-              minPris={minPris}
-              maxPris={maxPris}
-              snittPris={snittPris}
-              spotNaa={spotNaa}
-              nettleieOre={nettleieOre}
-              zone={zone}
-              visKr={visKr}
-              onToggleVisKr={() => setVisKr(prev => !prev)}
-                  onZoneChange={endreZone}
+            <ApparatVelger
+              alleApparater={alleApparater}
+              valgtApparat={valgtApparat}
+              onVelg={setValgtApparat}
+              anbefaling={anbefaling}
+              visEgetSkjema={visEgetSkjema}
               onToggleSkjema={startNyttApparat}
               egetApparat={egetApparat}
               onEndreEget={(felt, verdi) => setEgetApparat({ ...egetApparat, [felt]: verdi })}
