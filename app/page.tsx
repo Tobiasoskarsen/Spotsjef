@@ -1,12 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Pris, Apparat, Anbefaling, HistorikkPunkt } from '@/lib/types'
-import { APPARATER, soneForKoordinater, soneForStedsdata } from '@/lib/constants'
+import { APPARATER, SONER, soneForKoordinater, soneForStedsdata } from '@/lib/constants'
 import { lagTema } from '@/lib/theme'
-import { useAnimatedNumber } from '@/lib/useAnimatedNumber'
 import { hentAltData, beregnAnbefaling, prisStatistikk, kostnadForStart, lesPrisCache, skrivPrisCache } from '@/lib/priser'
-import PrisTicker from '@/components/PrisTicker'
 import DagsOppsummering from '@/components/DagsOppsummering'
+import StatusKort from '@/components/StatusKort'
 import PrisInnstillinger from '@/components/PrisInnstillinger'
 import FlytLogo from '@/components/FlytLogo'
 import { abonnerPaaPush, avsluttPush, pushStottes } from '@/lib/pushClient'
@@ -18,7 +17,6 @@ import Alarm from '@/components/Alarm'
 import Kalkulator from '@/components/Kalkulator'
 import BunnMeny, { Side } from '@/components/BunnMeny'
 import { VaerTime, hentVaer } from '@/lib/vaer'
-import VaerKort from '@/components/VaerKort'
 import AssistentKort from '@/components/AssistentKort'
 import ReminderKort from '@/components/ReminderKort'
 import Konto from '@/components/Konto'
@@ -37,7 +35,6 @@ export default function Home() {
   const [sistOppdatert, setSistOppdatert] = useState<number | null>(null)
   const [hentTeller, setHentTeller] = useState(0)
   const [visIdag, setVisIdag] = useState(true)
-  const [visKr, setVisKr] = useState(false)
   const [tariffType, setTariffType] = useState<'spot' | 'norgespris'>('spot')
   const [darkMode, setDarkMode] = useState(true)
   const [adresseTekst, setAdresseTekst] = useState('')
@@ -61,7 +58,7 @@ export default function Home() {
   const [frist, setFrist] = useState('')
   const [nettleie, setNettleie] = useState('')
   const [vaer, setVaer] = useState<VaerTime[]>([])
-  const [lasterVaer, setLasterVaer] = useState(true)
+  const [, setLasterVaer] = useState(true)
 
   // Vis introen kun første gang (til man trykker «Kom i gang»)
   useEffect(() => {
@@ -69,9 +66,6 @@ export default function Home() {
   }, [])
 
   const tema = lagTema(darkMode)
-  const naavaerendePris = priser[new Date().getHours()]?.pris ?? 0
-  const animertPris = useAnimatedNumber(naavaerendePris)
-  const spotNaa = priser[new Date().getHours()]?.spot ?? 0
   const nettleieOre = parseFloat(nettleie) || 0
   const nettleieKr = nettleieOre / 100
 
@@ -403,22 +397,6 @@ export default function Home() {
   const { min: minPris, max: maxPris, snitt: snittPris } = prisStatistikk(visData)
   // Kostnad ved å kjøre apparatet nå (kun relevant når vi ser på i dag)
   const kjorNaaKostnad = visIdag ? kostnadForStart(visData, valgtApparat, new Date().getHours(), nettleieKr) : null
-  const norgesprisOre = 50
-  const prisNaa = tariffType === 'norgespris' ? norgesprisOre : naavaerendePris + nettleieOre
-  const prisKortDisplay = visKr ? (prisNaa / 100).toFixed(2) : prisNaa.toFixed(0)
-  const prisKortEnhet = visKr ? 'kr/kWh' : 'øre/kWh'
-  const spotmerknad = tariffType === 'norgespris'
-    ? 'Du bruker Norgespris på 50 øre/kWh. Spot-anbefalinger er mindre relevant.'
-    : 'Spotpris vises for valgt sone og time.'
-
-  function visTimepris() {
-    if (tariffType === 'norgespris') {
-      setSide('mer')
-      return
-    }
-    const graf = document.getElementById('prisgraf')
-    if (graf) graf.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
 
   return (
    <>
@@ -429,7 +407,7 @@ export default function Home() {
           <FlytLogo size={44} />
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: 700, color: tema.tekst, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.1 }}>Flyt</h1>
-            <p style={{ fontSize: '12.5px', color: tema.subtekst, margin: '1px 0 0' }}>Finn den billigste tiden å bruke strøm</p>
+            <p style={{ fontSize: '12.5px', color: tema.subtekst, margin: '1px 0 0' }}>Strøm, vær og påminnelser – på ett sted</p>
           </div>
         </div>
         <button onClick={() => setDarkMode(!darkMode)} style={{ width: '40px', height: '40px', borderRadius: '13px', border: `1px solid ${tema.border}`, background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', boxShadow: tema.skygge, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Bytt mellom lys og mørk modus">
@@ -448,106 +426,13 @@ export default function Home() {
 
       {side === 'hjem' && (
         <>
-          <div style={{ display: 'grid', gap: '14px', marginBottom: '18px' }}>
-            <div style={{ background: tema.cardBg, borderRadius: '20px', padding: '24px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
-                <div>
-                  <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>Aktuell pris</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className="tnum" style={{ fontSize: '46px', fontWeight: 700, color: tema.tekst, lineHeight: 1 }}>{prisKortDisplay}</span>
-                    <span style={{ fontSize: '16px', color: tema.subtekst, marginTop: '4px' }}>{prisKortEnhet}</span>
-                  </div>
-                  <p style={{ fontSize: '13px', color: tema.subtekst, margin: '14px 0 0', lineHeight: 1.6 }}>{spotmerknad}</p>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '180px' }}>
-                  <button type="button" onClick={() => setVisKr(prev => !prev)} style={{ padding: '14px 16px', borderRadius: '16px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, cursor: 'pointer', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}>
-                    {visKr ? 'Vis i øre' : 'Vis i kr'}
-                  </button>
-                  <button type="button" onClick={visTimepris} style={{ padding: '14px 16px', borderRadius: '16px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}>
-                    {tariffType === 'norgespris' ? 'Endre tariff' : 'Se timepris'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: '14px' }}>
-            <div style={{ background: tema.cardBg, borderRadius: '20px', padding: '22px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-              <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>Dagens anbefaling</p>
-              {tariffType === 'spot' && anbefaling ? (
-                <>
-                  <p style={{ fontSize: '18px', fontWeight: 700, color: tema.tekst, margin: '0 0 10px' }}>Kjør {valgtApparat.navn} mellom kl. {anbefaling.startTime}–{anbefaling.sluttTime}</p>
-                  <p style={{ fontSize: '13px', color: tema.subtekst, margin: '0 0 12px', lineHeight: 1.6 }}>Snittpris: {anbefaling.snittPris} øre/kWh · anslått kostnad: {anbefaling.kostnad} kr</p>
-                  <p style={{ fontSize: '13px', color: tema.subtekst, margin: 0, lineHeight: 1.6 }}>Dette tidsvinduet gir deg lavest strømregning for utstyret ditt i dag.</p>
-                </>
-              ) : tariffType === 'spot' ? (
-                <p style={{ fontSize: '13px', color: tema.subtekst, margin: 0 }}>Innsikt lastes inn for å finne beste tid å bruke strøm.</p>
-              ) : (
-                <p style={{ fontSize: '13px', color: tema.subtekst, margin: 0 }}>Med Norgespris viser vi fast pris. Spot-anbefalinger er fortsatt tilgjengelig under Mer.</p>
-              )}
-            </div>
-
-            <VaerKort vaer={vaer} laster={lasterVaer} tema={tema} naavaerendePris={naavaerendePris} tariffType={tariffType} />
-            <AssistentKort vaer={vaer} priser={priser} apparater={alleApparater} tema={tema} />
-            <ReminderKort tema={tema} />
-
-            <div style={{ background: tema.cardBg, borderRadius: '20px', padding: '22px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-              <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>Markedsoverblikk</p>
-              <div style={{ marginBottom: tariffType === 'spot' ? '10px' : '0' }}>
-                <PrisTicker
-                  naavaerendePris={naavaerendePris}
-                  animertPris={animertPris}
-                  minPris={minPris}
-                  maxPris={maxPris}
-                  snittPris={snittPris}
-                  spotNaa={spotNaa}
-                  nettleieOre={nettleieOre}
-                  zone={zone}
-                  visKr={visKr}
-                  onToggleVisKr={() => setVisKr(prev => !prev)}
-                  onZoneChange={endreZone}
-                  tema={tema}
-                />
-              </div>
-              {tariffType === 'spot' && <DagsOppsummering priser={priser} nettleieOre={nettleieOre} tema={tema} />}
-            </div>
-
-            {tariffType === 'spot' ? (
-              <>
-                <div id="prisgraf" style={{ background: tema.cardBg, borderRadius: '20px', padding: '20px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                    {(['I dag', 'I morgen'] as const).map((label, i) => {
-                      const erValgt = (visIdag && i === 0) || (!visIdag && i === 1)
-                      return (
-                        <button key={label} onClick={() => setVisIdag(i === 0)} style={{ padding: '7px 16px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: 'inherit', transition: 'all 0.2s', ...(erValgt ? { background: tema.accentBg, color: tema.pillTekst } : { background: tema.inputBg, color: tema.subtekst }) }}>
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <PrisGraf
-                    data={visData}
-                    minPris={minPris}
-                    maxPris={maxPris}
-                    snittPris={snittPris}
-                    anbefaling={anbefaling}
-                    valgtApparat={valgtApparat}
-                    laster={laster}
-                    tema={tema}
-                  />
-                </div>
-              </>
-            ) : (
-              <div style={{ background: tema.cardBg, borderRadius: '20px', padding: '22px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-                <p style={{ fontSize: '13px', color: tema.tekst, margin: '0 0 10px', fontWeight: 700 }}>Fastpris valgt</p>
-                <p style={{ fontSize: '13px', color: tema.subtekst, margin: 0, lineHeight: 1.6 }}>Du bruker Norgespris med fast 50 øre/kWh. Det betyr at timepris-detaljer ikke lenger er hovedfokus her.</p>
-              </div>
-            )}
-          </div>
+          {/* Hjem svarer på ÉN ting: hva bør jeg vite akkurat nå? */}
+          <StatusKort priser={priser} nettleieOre={nettleieOre} tariffType={tariffType} laster={laster} tema={tema} />
+          <AssistentKort vaer={vaer} priser={priser} apparater={alleApparater} tema={tema} />
         </>
       )}
 
-      {side === 'apparater' && (
+      {side === 'planlegg' && (
         <>
           <div style={{ display: 'grid', gap: '14px', marginBottom: '16px' }}>
             <ApparatVelger
@@ -595,6 +480,9 @@ export default function Home() {
                 laster={laster}
                 tema={tema}
               />
+              <div style={{ marginTop: '14px' }}>
+                <DagsOppsummering priser={visData} nettleieOre={nettleieOre} tema={tema} />
+              </div>
             </div>
 
             <Kalkulator alleApparater={alleApparater} priser={priser} nettleie={nettleieKr} darkMode={darkMode} tema={tema} />
@@ -602,37 +490,7 @@ export default function Home() {
         </>
       )}
 
-      {side === 'historikk' && (
-        <div style={{ display: 'grid', gap: '14px' }}>
-          <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '18px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-            <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>AI-hjelper</p>
-            <h2 style={{ fontSize: '22px', color: tema.tekst, margin: '0 0 10px', lineHeight: 1.25 }}>Planlegg dagen smartere</h2>
-            <p style={{ fontSize: '14px', color: tema.subtekst, margin: 0, lineHeight: 1.7 }}>Få hverdagslige tips, strømvennlige gjøremål og påminnelser basert på tidspunkt, vær og pris.</p>
-          </div>
-
-          <AiInnsikt
-            aiInnsikt={aiInnsikt}
-            lasterAI={lasterAI}
-            kanAnalysere={priser.length > 0}
-            onAnalyser={hentAiInnsikt}
-            tema={tema}
-          />
-
-          <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '18px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-            <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Slik kan AI hjelpe</p>
-            <ul style={{ margin: 0, paddingLeft: '18px', color: tema.tekst, lineHeight: 1.8, fontSize: '14px' }}>
-              <li>Få forslag til når du bør starte vaskemaskin eller oppvask.</li>
-              <li>Husk å slå av standby-apparater når strømmen er dyr.</li>
-              <li>Planlegg daglige energivaner ut fra vær og strømpris.</li>
-            </ul>
-          </div>
-
-          <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '18px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-            <p style={{ fontSize: '11px', color: tema.subtekst, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Trenger du en påminnelse?</p>
-            <p style={{ fontSize: '14px', color: tema.subtekst, margin: 0, lineHeight: 1.7 }}>Bruk AI for å finne praktiske gjøremål og huskelister du kan gjøre i dag, i morgen eller når strømmen er billig.</p>
-          </div>
-        </div>
-      )}
+      {side === 'paminnelser' && <ReminderKort tema={tema} />}
 
       {side === 'mer' && (
         <>
@@ -645,16 +503,16 @@ export default function Home() {
                 <p style={{ fontSize: '24px', fontWeight: 700, color: tema.tekst, margin: '0 0 6px' }}>{zone}</p>
                 <p style={{ fontSize: '14px', color: tema.subtekst, margin: 0 }}>{tariffType === 'norgespris' ? 'Norgespris - fast 50 øre/kWh' : 'Spotpris - timepris i valgt sone'}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const el = document.getElementById('adresseInput')
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }}
-                style={{ padding: '12px 16px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}
+              <select
+                value={zone}
+                onChange={e => endreZone(e.target.value)}
+                aria-label="Velg prissone"
+                style={{ padding: '12px 14px', borderRadius: '14px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
               >
-                Endre sone
-              </button>
+                {SONER.map(s => (
+                  <option key={s.kode} value={s.kode}>{s.navn}</option>
+                ))}
+              </select>
             </div>
             <p style={{ fontSize: '13px', color: tema.subtekst, margin: '16px 0 0', lineHeight: 1.6 }}>Her kan du oppdatere din sone og tariff. Bruk adressen under for å få mer nøyaktig vær og sonevalg.</p>
           </div>

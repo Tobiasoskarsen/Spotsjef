@@ -1,12 +1,12 @@
 import { Tema } from '@/lib/theme'
-import { Home, Zap, BarChart3, Settings, type LucideIcon } from 'lucide-react'
+import { Home, CalendarClock, Bell, Settings, type LucideIcon } from 'lucide-react'
 
-export type Side = 'hjem' | 'apparater' | 'historikk' | 'mer'
+export type Side = 'hjem' | 'planlegg' | 'paminnelser' | 'mer'
 
 const SIDER: { id: Side; label: string; Ikon: LucideIcon }[] = [
   { id: 'hjem', label: 'Hjem', Ikon: Home },
-  { id: 'apparater', label: 'Apparater', Ikon: Zap },
-  { id: 'historikk', label: 'AI', Ikon: BarChart3 },
+  { id: 'planlegg', label: 'Planlegg', Ikon: CalendarClock },
+  { id: 'paminnelser', label: 'Påminnelser', Ikon: Bell },
   { id: 'mer', label: 'Mer', Ikon: Settings },
 ]
 
