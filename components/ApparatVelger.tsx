@@ -34,19 +34,12 @@ export default function ApparatVelger({
   onTilbakestill, skjemaFeil, delt, onDel, frist, onEndreFrist, kjorNaaKostnad, tema,
 }: Props) {
   const [bekreftTilbakestill, setBekreftTilbakestill] = useState(false)
+  const [bekreftSlett, setBekreftSlett] = useState(false)
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '10px 14px', borderRadius: '12px', border: 'none',
     background: tema.cardBg, color: tema.tekst, fontSize: '14px', outline: 'none',
     boxSizing: 'border-box', fontFamily: 'inherit',
-  }
-
-  // Liten knapp i hjørnet av et apparat-kort (endre/slett)
-  const hjorneKnapp: React.CSSProperties = {
-    width: '24px', height: '24px', borderRadius: '8px', border: `1px solid ${tema.border}`,
-    background: tema.cardBg, color: tema.subtekst, cursor: 'pointer', fontSize: '12px',
-    lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'inherit', padding: 0,
   }
 
   // Spar-estimat: foretrekk "kjør nå"-sammenligning, ellers "vs dyreste tid"
@@ -64,48 +57,78 @@ export default function ApparatVelger({
 
   const kanSlette = alleApparater.length > 1
 
+  // Liten tekstknapp brukt i detaljlinjen (Endre / Slett)
+  const lenkeKnapp: React.CSSProperties = {
+    background: 'transparent', border: 'none', color: tema.subtekst, cursor: 'pointer',
+    fontSize: '12px', fontWeight: 500, fontFamily: 'inherit', padding: '4px 6px',
+    display: 'inline-flex', alignItems: 'center', gap: '4px', borderRadius: '8px',
+  }
+
   return (
     <div style={{ background: tema.cardBg, borderRadius: '18px', padding: '20px', marginBottom: '14px', boxShadow: tema.skygge, border: `1px solid ${tema.border}` }}>
-      <h2 style={{ fontSize: '15px', fontWeight: 600, color: tema.tekst, margin: '0 0 14px', letterSpacing: '-0.01em' }}>Når bør jeg kjøre?</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+      <h2 style={{ fontSize: '15px', fontWeight: 600, color: tema.tekst, margin: '0 0 12px', letterSpacing: '-0.01em' }}>Når bør jeg kjøre?</h2>
+
+      {/* Kompakte chips: kun ikon + navn. Detaljer vises for valgt apparat under. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
         {alleApparater.map(a => {
           const valgt = valgtApparat.navn === a.navn
           return (
-            <div key={a.navn} style={{ position: 'relative' }}>
-              <button onClick={() => onVelg(a)} style={{ width: '100%', padding: '14px', borderRadius: '14px', textAlign: 'left', border: valgt ? `1.5px solid ${tema.accent}` : '1.5px solid transparent', cursor: 'pointer', transition: 'all 0.2s', background: valgt ? tema.accentBg : tema.inputBg, fontFamily: 'inherit' }}>
-                <div style={{ fontSize: '20px', marginBottom: '6px' }}>{a.ikon || '🔌'}</div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: valgt ? tema.pillTekst : tema.tekst, paddingRight: '4px' }}>{a.navn}</div>
-                <div style={{ fontSize: '11px', color: tema.subtekst }}>{a.watt}W · {a.timer}t{a.gangerPerUke ? ` · ${a.gangerPerUke}×/uke` : ''}</div>
-              </button>
-              <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px' }}>
-                <button onClick={() => onRediger(a)} aria-label={`Endre ${a.navn}`} title="Endre apparat" style={hjorneKnapp}><Pencil size={13} /></button>
-                {kanSlette && (
-                  <button onClick={() => onSlett(a)} aria-label={`Slett ${a.navn}`} title="Slett apparat" style={hjorneKnapp}><X size={14} /></button>
-                )}
-              </div>
-            </div>
+            <button
+              key={a.navn}
+              onClick={() => { onVelg(a); setBekreftSlett(false) }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '8px 13px', borderRadius: '999px', cursor: 'pointer',
+                border: valgt ? `1.5px solid ${tema.accent}` : '1.5px solid transparent',
+                background: valgt ? tema.accentBg : tema.inputBg,
+                color: valgt ? tema.pillTekst : tema.tekst,
+                fontSize: '13px', fontWeight: valgt ? 600 : 500, fontFamily: 'inherit',
+                transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: '15px', lineHeight: 1 }}>{a.ikon || '🔌'}</span>
+              {a.navn}
+            </button>
           )
         })}
-        <button onClick={onToggleSkjema} style={{ padding: '14px', borderRadius: '14px', textAlign: 'left', border: `1.5px dashed ${tema.border}`, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: tema.subtekst }}>
-          <div style={{ marginBottom: '6px' }}><Plus size={20} /></div>
-          <div style={{ fontSize: '13px', fontWeight: 500, color: tema.subtekst }}>Legg til</div>
-          <div style={{ fontSize: '11px', color: tema.subtekst }}>Eget apparat</div>
+        <button
+          onClick={onToggleSkjema}
+          aria-label="Legg til eget apparat"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '5px',
+            padding: '8px 13px', borderRadius: '999px', cursor: 'pointer',
+            border: `1.5px dashed ${tema.border}`, background: 'transparent',
+            color: tema.subtekst, fontSize: '13px', fontWeight: 500, fontFamily: 'inherit',
+          }}
+        >
+          <Plus size={14} /> Legg til
         </button>
       </div>
 
-      {/* Tilbakestill til standardapparatene (to-trinns bekreftelse) */}
-      <div style={{ marginBottom: '12px' }}>
-        <button
-          onClick={() => {
-            if (bekreftTilbakestill) { onTilbakestill(); setBekreftTilbakestill(false) }
-            else { setBekreftTilbakestill(true) }
-          }}
-          onBlur={() => setBekreftTilbakestill(false)}
-          style={{ background: 'transparent', border: 'none', color: bekreftTilbakestill ? tema.accent : tema.subtekst, cursor: 'pointer', fontSize: '12px', fontWeight: bekreftTilbakestill ? 600 : 400, fontFamily: 'inherit', padding: '2px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-        >
-          <RotateCcw size={13} />
-          {bekreftTilbakestill ? 'Trykk en gang til for å tilbakestille til standard' : 'Tilbakestill til standard'}
-        </button>
+      {/* Detaljlinje for valgt apparat: info + Endre/Slett samlet på ETT sted */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: tema.inputBg, borderRadius: '12px', padding: '10px 14px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12.5px', color: tema.subtekst }}>
+          <span style={{ color: tema.tekst, fontWeight: 600 }}>{valgtApparat.navn}</span>
+          {' · '}{valgtApparat.watt}W · {valgtApparat.timer}t{valgtApparat.gangerPerUke ? ` · ${valgtApparat.gangerPerUke}×/uke` : ''}
+        </span>
+        <span style={{ display: 'inline-flex', gap: '2px', flexShrink: 0 }}>
+          <button onClick={() => { onRediger(valgtApparat); setBekreftSlett(false) }} aria-label={`Endre ${valgtApparat.navn}`} style={lenkeKnapp}>
+            <Pencil size={12} /> Endre
+          </button>
+          {kanSlette && (
+            <button
+              onClick={() => {
+                if (bekreftSlett) { onSlett(valgtApparat); setBekreftSlett(false) }
+                else setBekreftSlett(true)
+              }}
+              onBlur={() => setBekreftSlett(false)}
+              aria-label={`Slett ${valgtApparat.navn}`}
+              style={{ ...lenkeKnapp, color: bekreftSlett ? '#c0664f' : tema.subtekst, fontWeight: bekreftSlett ? 600 : 500 }}
+            >
+              <X size={13} /> {bekreftSlett ? 'Sikker?' : 'Slett'}
+            </button>
+          )}
+        </span>
       </div>
 
       {visEgetSkjema && (
@@ -114,16 +137,18 @@ export default function ApparatVelger({
             {redigererNavn ? `Endre «${redigererNavn}»` : 'Nytt apparat'}
           </p>
           <input style={inputStyle} placeholder="Navn (f.eks. Badstue)" value={egetApparat.navn} onChange={e => onEndreEget('navn', e.target.value)} />
-          <input style={inputStyle} placeholder="Watt (f.eks. 3000)" type="number" value={egetApparat.watt} onChange={e => onEndreEget('watt', e.target.value)} />
-          <input style={inputStyle} placeholder="Timer per gang (f.eks. 1.5)" type="number" step="0.5" value={egetApparat.timer} onChange={e => onEndreEget('timer', e.target.value)} />
-          <input style={inputStyle} placeholder="Ganger per uke (f.eks. 3)" type="number" min="1" max="50" value={egetApparat.gangerPerUke} onChange={e => onEndreEget('gangerPerUke', e.target.value)} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            <input style={inputStyle} placeholder="Watt" type="number" value={egetApparat.watt} onChange={e => onEndreEget('watt', e.target.value)} />
+            <input style={inputStyle} placeholder="Timer" type="number" step="0.5" value={egetApparat.timer} onChange={e => onEndreEget('timer', e.target.value)} />
+            <input style={inputStyle} placeholder="×/uke" type="number" min="1" max="50" value={egetApparat.gangerPerUke} onChange={e => onEndreEget('gangerPerUke', e.target.value)} />
+          </div>
 
           <p style={{ fontSize: '12px', color: tema.subtekst, margin: '4px 0 0' }}>Velg ikon</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
             {APPARAT_IKONER.map(ic => {
               const valgt = egetApparat.ikon === ic
               return (
-                <button key={ic} type="button" onClick={() => onEndreEget('ikon', ic)} aria-label={`Velg ikon ${ic}`} style={{ width: '38px', height: '38px', borderRadius: '11px', fontSize: '18px', cursor: 'pointer', background: valgt ? tema.accentBg : tema.cardBg, border: valgt ? `1.5px solid ${tema.accent}` : `1px solid ${tema.border}`, lineHeight: 1, fontFamily: 'inherit' }}>
+                <button key={ic} type="button" onClick={() => onEndreEget('ikon', ic)} aria-label={`Velg ikon ${ic}`} style={{ width: '32px', height: '32px', borderRadius: '9px', fontSize: '15px', cursor: 'pointer', background: valgt ? tema.accentBg : tema.cardBg, border: valgt ? `1.5px solid ${tema.accent}` : `1px solid ${tema.border}`, lineHeight: 1, fontFamily: 'inherit', padding: 0 }}>
                   {ic}
                 </button>
               )
@@ -178,6 +203,21 @@ export default function ApparatVelger({
           {valgtApparat.navn} trenger {valgtApparat.timer}t og rekker ikke å bli ferdig før kl. {String(parseInt(frist)).padStart(2, '0')}:00. Velg et senere tidspunkt.
         </div>
       ) : null}
+
+      {/* Tilbakestill: diskret nederst (to-trinns bekreftelse) */}
+      <div style={{ marginTop: '12px', textAlign: 'right' }}>
+        <button
+          onClick={() => {
+            if (bekreftTilbakestill) { onTilbakestill(); setBekreftTilbakestill(false) }
+            else { setBekreftTilbakestill(true) }
+          }}
+          onBlur={() => setBekreftTilbakestill(false)}
+          style={{ background: 'transparent', border: 'none', color: bekreftTilbakestill ? tema.accent : tema.subtekst, cursor: 'pointer', fontSize: '11.5px', fontWeight: bekreftTilbakestill ? 600 : 400, fontFamily: 'inherit', padding: '2px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+        >
+          <RotateCcw size={12} />
+          {bekreftTilbakestill ? 'Trykk en gang til for å tilbakestille' : 'Tilbakestill apparatlista'}
+        </button>
+      </div>
     </div>
   )
 }

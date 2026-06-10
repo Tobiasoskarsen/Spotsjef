@@ -42,3 +42,5 @@ next-env.d.ts
 # IntelliJ / IDE
 .idea/
 *.iml
+
+.vercel
