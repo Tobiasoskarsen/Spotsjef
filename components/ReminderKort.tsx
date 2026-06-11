@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Tema } from '@/lib/theme'
 import { useBruker } from '@/lib/bruker'
 import { Reminder, hentReminder, leggTilReminder, slettReminder } from '@/lib/reminders'
+import { Sparkles } from 'lucide-react'
 
 // Din egen kalender: legg inn påminnelser/hendelser. Vises i briefen og pushes
 // ved forfall (cron). Krever innlogging (anonym konto holder).
@@ -14,6 +15,42 @@ export default function ReminderKort({ tema }: { tema: Tema }) {
   const [tid, setTid] = useState('')
   const [feil, setFeil] = useState('')
   const [jobber, setJobber] = useState(false)
+  const [aiTekst, setAiTekst] = useState('')
+  const [aiLaster, setAiLaster] = useState(false)
+  const [aiFeil, setAiFeil] = useState('')
+
+  // Tolker naturlig språk ("ring mamma fredag kl 18") og fyller feltene under,
+  // så brukeren ser hva AI-en forsto før hen bekrefter med «Legg til».
+  async function tolkMedAi() {
+    const t = aiTekst.trim()
+    if (!t) return
+    setAiLaster(true)
+    setAiFeil('')
+    try {
+      const naa = new Date()
+      const res = await fetch('/api/tolk-paminnelse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tekst: t,
+          naa: naa.toISOString(),
+          naaLesbar: naa.toLocaleString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.lokalTid) {
+        setTekst(data.tekst)
+        setTid(data.lokalTid)
+        setAiTekst('')
+        setFeil('')
+      } else {
+        setAiFeil(data.error || 'Forsto ikke helt – prøv igjen.')
+      }
+    } catch {
+      setAiFeil('Kunne ikke tolke akkurat nå.')
+    }
+    setAiLaster(false)
+  }
 
   useEffect(() => {
     if (lasterBruker) return
@@ -103,6 +140,26 @@ export default function ReminderKort({ tema }: { tema: Tema }) {
           Ingen påminnelser ennå. Legg inn noe du vil huske – jeg minner deg på det.
         </p>
       )}
+
+      {/* AI: skriv i vanlig språk → fyller feltene under */}
+      <div style={{ background: tema.inputBg, borderRadius: '14px', padding: '12px', marginBottom: '12px' }}>
+        <p style={{ fontSize: '12px', color: tema.subtekst, margin: '0 0 8px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+          <Sparkles size={13} /> Skriv naturlig
+        </p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <input
+            value={aiTekst}
+            onChange={e => setAiTekst(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') tolkMedAi() }}
+            placeholder="f.eks. «ring mamma fredag kl 18»"
+            style={{ ...inputStil, background: tema.cardBg, flex: 1 }}
+          />
+          <button type="button" onClick={tolkMedAi} disabled={aiLaster || !aiTekst.trim()} style={{ flexShrink: 0, padding: '0 16px', borderRadius: '12px', border: 'none', background: tema.accentGradient, color: '#fff', cursor: aiLaster || !aiTekst.trim() ? 'default' : 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'inherit', opacity: aiLaster || !aiTekst.trim() ? 0.6 : 1 }}>
+            {aiLaster ? '…' : 'Tolk'}
+          </button>
+        </div>
+        {aiFeil && <p style={{ fontSize: '12px', color: '#d1605f', margin: '8px 0 0' }}>{aiFeil}</p>}
+      </div>
 
       <div style={{ display: 'grid', gap: '8px' }}>
         <input value={tekst} onChange={e => setTekst(e.target.value)} placeholder="Hva vil du huskes på?" style={inputStil} />
