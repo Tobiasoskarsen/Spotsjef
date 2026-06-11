@@ -8,21 +8,22 @@ import { Calendar, ChevronDown, ChevronUp, X } from 'lucide-react'
 // Avtalene vises i appen. Lenken lagres lokalt på enheten.
 const GUIDE: { tittel: string; steg: string[] }[] = [
   {
-    tittel: 'iPhone / iCloud',
+    tittel: 'iPhone (rett på mobilen)',
     steg: [
-      'Åpne Kalender-appen på Mac, eller iCloud.com → Kalender.',
-      'Hold over kalenderen → trykk del-ikonet.',
-      'Skru på «Offentlig kalender» og kopier lenken (webcal://…).',
-      'Lim den inn her.',
+      'Åpne Kalender-appen på iPhone.',
+      'Trykk «Kalendere» nederst på skjermen.',
+      'Trykk den blå (i)-knappen ved kalenderen du vil dele.',
+      'Skru på «Offentlig kalender», trykk «Del lenke» → «Kopier».',
+      'Kom tilbake hit og lim inn lenken.',
     ],
   },
   {
-    tittel: 'Google Kalender',
+    tittel: 'Google (gjøres på pc én gang)',
     steg: [
-      'Åpne Google Kalender på PC.',
-      'Hold over kalenderen → de tre prikkene → «Innstillinger og deling».',
+      'Google-appen viser dessverre ikke lenken – bruk en pc/nettleser.',
+      'Google Kalender → hold over kalenderen → de tre prikkene → «Innstillinger og deling».',
       'Under «Integrer kalender»: kopier «Hemmelig adresse i iCal-format».',
-      'Lim den inn her.',
+      'Send lenken til deg selv (f.eks. på melding) og lim den inn her.',
     ],
   },
   {
@@ -30,8 +31,7 @@ const GUIDE: { tittel: string; steg: string[] }[] = [
     steg: [
       'Outlook.com → Innstillinger → Kalender → «Delte kalendere».',
       'Publiser kalenderen og velg «Kan vise alle detaljer».',
-      'Kopier ICS-lenken.',
-      'Lim den inn her.',
+      'Kopier ICS-lenken og lim den inn her.',
     ],
   },
 ]
