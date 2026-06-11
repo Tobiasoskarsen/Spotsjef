@@ -32,4 +32,33 @@ export const NAER = {
   mellomrom: '20px',
 
   skygge: '0 2px 6px rgba(31,42,58,0.06), 0 14px 34px rgba(31,42,58,0.08)',
+
+  // Merkevare (fra logoen): blå→grønn gradient + dyp marineblå ordbilde
+  logoBla: '#35a6ef',
+  logoGronn: '#4cb878',
+  navn: '#23355c',
 } as const
+
+import type { Tema } from './theme'
+
+// Pårørende-flatens tema, i samme Tema-form som komponentene allerede bruker.
+// Alltid lys, varm og rolig – aldri «techy». (Flyt hadde mørk modus; Nær har én
+// gjennomtenkt visning.)
+export function lagNaerTema(): Tema {
+  return {
+    bg: NAER.bg,
+    bgGradient: 'radial-gradient(1100px 560px at 50% -8%, #ffffff 0%, #faf7f1 52%, #f2ecdf 100%)',
+    cardBg: NAER.kortBg,
+    border: NAER.border,
+    tekst: NAER.tekst,
+    subtekst: NAER.subtekst,
+    inputBg: '#f4f1e9',
+    accent: NAER.gronn,
+    accentBg: NAER.gronn, // solid – hvit knappetekst skal alltid være lesbar
+    accentGradient: `linear-gradient(135deg, ${NAER.logoBla} 0%, ${NAER.logoGronn} 100%)`,
+    pillBg: NAER.gronnLys,
+    pillTekst: '#26684c',
+    skygge: NAER.skygge,
+    skyggeHero: '0 2px 8px rgba(31,42,58,0.07), 0 22px 48px rgba(31,42,58,0.12)',
+  }
+}

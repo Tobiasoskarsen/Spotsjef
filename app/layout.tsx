@@ -10,18 +10,18 @@ const figtree = Figtree({
 })
 
 export const metadata: Metadata = {
-  title: 'Flyt — finn billigste strømtid',
-  description: 'Se norske strømpriser time for time og finn den billigste tiden å bruke strøm med Flyt.',
-  applicationName: 'Flyt',
+  title: 'Nær – trygghet for familien',
+  description: 'Hjelp noen du er glad i med hverdagen: påminnelser, vær og praktiske beskjeder på en skjerm de forstår – og visshet om at det når frem.',
+  applicationName: 'Nær',
   appleWebApp: {
     capable: true,
-    title: 'Flyt',
-    statusBarStyle: 'black-translucent',
+    title: 'Nær',
+    statusBarStyle: 'default',
   },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#080b11',
+  themeColor: '#faf7f1',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,28 +1,29 @@
 import type { MetadataRoute } from 'next'
 
-// Web App Manifest – gjør Flyt installerbar på hjemskjermen.
+// Web App Manifest – gjør Nær installerbar på hjemskjermen. Viktig for
+// mottakeren: installert PWA er det som gir ekte push-varsler på iOS.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Flyt — strømpriser',
-    short_name: 'Flyt',
-    description: 'Finn den billigste tiden å bruke strøm. Strømpriser, vær og smarte råd.',
+    name: 'Nær – trygghet for familien',
+    short_name: 'Nær',
+    description: 'Hjelp noen du er glad i med hverdagen: påminnelser, vær og praktiske beskjeder på en skjerm de forstår.',
     start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#080b11',
-    theme_color: '#080b11',
+    background_color: '#faf7f1',
+    theme_color: '#faf7f1',
     lang: 'no',
-    categories: ['utilities', 'lifestyle'],
+    categories: ['lifestyle', 'health'],
     icons: [
       {
-        src: '/flyt-icon.svg',
+        src: '/naer-icon.svg',
         sizes: 'any',
         type: 'image/svg+xml',
         purpose: 'any',
       },
       {
-        src: '/flyt-icon.svg',
+        src: '/naer-icon.svg',
         sizes: 'any',
         type: 'image/svg+xml',
         purpose: 'maskable',

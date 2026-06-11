@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       // Pris falt under grensen – varsle én gang
       const ok = await sendVarsel(
         a,
-        'Flyt — billig strøm nå!',
+        'Nær — billig strøm nå',
         `Prisen er ${pris.toFixed(0)} øre/kWh — under grensen din på ${a.grense} øre.`,
       )
       if (ok) {
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
       if (!p || p.tommedag == null || p.tommedag !== iMorgenUkedag) continue
       if (a.soppVarslet === iMorgenDato) continue // alt varslet for denne datoen
       if (erStilletid(osloTime, p.stilleFra, p.stilleTil)) continue // respekter stilletimer
-      const ok = await sendVarsel(a, 'Flyt — tøm søpla', 'Søpla tømmes i morgen. Husk å sette den ut i kveld.')
+      const ok = await sendVarsel(a, 'Nær — tøm søpla', 'Søpla tømmes i morgen. Husk å sette den ut i kveld.')
       if (ok) {
         await settSoppVarslet(a.sub.endpoint, iMorgenDato)
         sendtSoppel++

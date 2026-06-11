@@ -1,6 +1,6 @@
-// Flyt service worker – gjør appen installerbar og tilgjengelig offline.
+// Nær service worker – gjør appen installerbar og tilgjengelig offline.
 // Strategi: nettverk-først (alltid fersk når online), med cache som fallback.
-const CACHE = 'flyt-v1'
+const CACHE = 'naer-v1'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -44,18 +44,20 @@ self.addEventListener('fetch', (event) => {
 
 // Push-varsel mottatt fra serveren – vis det (virker selv når appen er lukket)
 self.addEventListener('push', (event) => {
-  let data = { title: 'Flyt', body: 'Billig strøm nå!' }
+  let data = { title: 'Nær', body: '' }
   try {
     if (event.data) data = event.data.json()
   } catch {
     // Ugyldig payload – bruk standardtekst
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Flyt', {
+    self.registration.showNotification(data.title || 'Nær', {
       body: data.body || '',
-      icon: '/flyt-icon.svg',
-      badge: '/flyt-icon.svg',
-      tag: 'flyt-pris',
+      icon: '/naer-icon.svg',
+      badge: '/naer-icon.svg',
+      // Unik tag per varsel: en påminnelse skal ALDRI overskrive et
+      // eskaleringsvarsel (eller omvendt) – pålitelighet er eksistensielt
+      tag: 'naer-' + Date.now(),
       lang: 'no',
     }),
   )
