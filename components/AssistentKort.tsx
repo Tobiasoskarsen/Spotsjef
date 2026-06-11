@@ -9,6 +9,8 @@ import { hentReminder, Reminder } from '@/lib/reminders'
 import { lagBrief } from '@/lib/assistent'
 import { koblBrukerTilPush, pushStottes } from '@/lib/pushClient'
 import AssistentOppsett from '@/components/AssistentOppsett'
+import FlytChat from '@/components/FlytChat'
+import { Sparkles } from 'lucide-react'
 
 // Hverdagsassistenten.
 // Prinsipp: assistenten sier KUN ting den faktisk vet – fra ekte data
@@ -49,10 +51,39 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   const [varslerFeil, setVarslerFeil] = useState('')
 
   const [reminder, setReminder] = useState<Reminder[]>([])
+  const [visChat, setVisChat] = useState(false)
 
   useEffect(() => {
     setVarslerPaa(localStorage.getItem('flyt:varsler') === 'on')
   }, [])
+
+  // Bygger en kompakt kontekst-tekst til chat-assistenten ut fra ekte data
+  function byggKontekst(): string {
+    const d: string[] = []
+    d.push(`Dato/tid: ${new Date().toLocaleString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}`)
+    if (cfg.navn) d.push(`Brukerens navn: ${cfg.navn}`)
+    if (priser.length > 0) {
+      const time = new Date().getHours()
+      const naa = priser[time]?.pris
+      const billigst = [...priser].sort((a, b) => a.pris - b.pris)[0]
+      const snitt = Math.round(priser.reduce((s, p) => s + p.pris, 0) / priser.length)
+      if (naa != null) d.push(`Strømpris nå: ${naa.toFixed(0)} øre/kWh. Snitt i dag: ${snitt}. Billigst kl. ${billigst.time} (${billigst.pris.toFixed(0)} øre).`)
+    }
+    if (vaer.length > 0) {
+      const v = vaer[0]
+      d.push(`Vær nå: ${v.temp !== null ? Math.round(v.temp) + '°' : 'ukjent'}.`)
+    }
+    if (cfg.tommedag !== null) {
+      const dager = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
+      d.push(`Tømmedag for søppel: ${dager[cfg.tommedag]}.`)
+    }
+    if (reminder.length > 0) {
+      const liste = reminder.slice(0, 5).map(r => `${new Date(r.tid).toLocaleString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}: ${r.tekst}`).join('; ')
+      d.push(`Kommende påminnelser: ${liste}.`)
+    }
+    if (apparater.length > 0) d.push(`Apparater brukeren har lagt inn: ${apparater.map(a => a.navn).join(', ')}.`)
+    return d.join('\n')
+  }
 
   useEffect(() => {
     if (!brukerId) { setReminder([]); return }
@@ -153,6 +184,9 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   // Unngå hopp/feil innhold før vi vet hva som er lagret
   if (!lastet) return null
 
+  // Chat tar over hele skjermen når den er åpen
+  if (visChat) return <FlytChat kontekst={byggKontekst()} tema={tema} onLukk={() => setVisChat(false)} />
+
   const kortStil: React.CSSProperties = {
     background: tema.cardBg, borderRadius: '20px', padding: '22px',
     boxShadow: tema.skygge, border: `1px solid ${tema.border}`,
@@ -180,14 +214,19 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
   if (!cfg.konfigurert) {
     return (
       <div style={kortStil}>
-        <p style={merkelapp}>Assistent</p>
+        <p style={merkelapp}>AI-assistent</p>
         <p style={{ fontSize: '17px', fontWeight: 700, color: tema.tekst, margin: '0 0 8px' }}>La Flyt hjelpe deg i hverdagen</p>
         <p style={{ fontSize: '13px', color: tema.subtekst, margin: '0 0 16px', lineHeight: 1.6 }}>
-          Ingen tilfeldige forslag – bare det som bygger på dine valg og ekte data (strøm og vær). Fortell meg litt, så samler jeg det viktigste på ett sted.
+          En AI-drevet assistent du kan snakke med – spør om hva som helst, eller la den samle det viktigste (strøm, vær, påminnelser) basert på dine valg og ekte data.
         </p>
-        <button type="button" onClick={() => setVisOppsett(true)} style={{ padding: '12px 18px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 700 }}>
-          Sett opp assistenten
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <button type="button" onClick={() => setVisOppsett(true)} style={{ padding: '12px 18px', borderRadius: '14px', border: 'none', background: tema.accentBg, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'inherit' }}>
+            Sett opp assistenten
+          </button>
+          <button type="button" onClick={() => setVisChat(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '12px 18px', borderRadius: '14px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'inherit' }}>
+            <Sparkles size={15} /> Spør Flyt
+          </button>
+        </div>
       </div>
     )
   }
@@ -258,15 +297,16 @@ export default function AssistentKort({ vaer, priser, apparater = [], tema }: Pr
         <p style={{ fontSize: '12px', color: '#d1605f', margin: '10px 0 0' }}>{aiFeil}</p>
       )}
 
+      {/* Spør Flyt – den AI-baserte samtalen */}
+      <button type="button" onClick={() => setVisChat(true)} style={{ marginTop: '14px', width: '100%', padding: '13px', borderRadius: '12px', border: 'none', background: tema.accentGradient, color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
+        <Sparkles size={16} /> Spør Flyt om hva som helst
+      </button>
+
       {punkter.length > 0 && !aiSammendrag && (
-        <button type="button" onClick={() => hentSammendrag(punkter.map(p => ({ tekst: p.tekst, kilde: p.kilde })))} disabled={lasterAi} style={{ marginTop: '14px', width: '100%', padding: '11px', borderRadius: '12px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, cursor: lasterAi ? 'default' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', opacity: lasterAi ? 0.7 : 1 }}>
+        <button type="button" onClick={() => hentSammendrag(punkter.map(p => ({ tekst: p.tekst, kilde: p.kilde })))} disabled={lasterAi} style={{ marginTop: '10px', width: '100%', padding: '11px', borderRadius: '12px', border: `1px solid ${tema.border}`, background: tema.inputBg, color: tema.tekst, cursor: lasterAi ? 'default' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', opacity: lasterAi ? 0.7 : 1 }}>
           {lasterAi ? 'Lager brief …' : '✨ Oppsummer med AI'}
         </button>
       )}
-
-      <p style={{ fontSize: '11px', color: tema.subtekst, margin: '14px 0 0', lineHeight: 1.6 }}>
-        Snart: innlogging på tvers av enheter og egne påminnelser.
-      </p>
     </div>
   )
 }

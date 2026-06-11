@@ -147,7 +147,7 @@ export default function AssistentOppsett({ start, onLagre, onAvbryt, erRedigerin
   const stegInnhold = [
     {
       tittel: 'Hei! Jeg er Flyt-assistenten din 👋',
-      undertekst: 'Jeg samler det viktigste for dagen din – og lover å bare si ting jeg faktisk vet. Først: hva skal jeg kalle deg?',
+      undertekst: 'Jeg er AI-drevet, så du kan snakke med meg og spørre om hva som helst. Jeg samler også det viktigste for dagen din – og lover å bare si ting jeg faktisk vet. Først: hva skal jeg kalle deg?',
       felt: NavnFelt,
     },
     {
