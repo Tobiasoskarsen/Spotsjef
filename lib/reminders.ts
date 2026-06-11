@@ -25,17 +25,24 @@ export async function hentReminder(brukerId: string): Promise<Reminder[]> {
   return data as Reminder[]
 }
 
-// Oppretter en påminnelse. Returnerer raden ved suksess.
-export async function leggTilReminder(brukerId: string, tekst: string, tidISO: string): Promise<Reminder | null> {
+// Oppretter en påminnelse. Returnerer raden + evt. feilmelding (for diagnose).
+export async function leggTilReminder(
+  brukerId: string,
+  tekst: string,
+  tidISO: string,
+): Promise<{ reminder: Reminder | null; feil?: string }> {
   const sb = getSupabase()
-  if (!sb) return null
+  if (!sb) return { reminder: null, feil: 'Ikke koblet til database.' }
   const { data, error } = await sb
     .from('reminders')
     .insert({ user_id: brukerId, tekst, tid: tidISO })
     .select('id, tekst, tid, varslet')
     .single()
-  if (error || !data) return null
-  return data as Reminder
+  if (error) {
+    console.error('leggTilReminder feilet:', error)
+    return { reminder: null, feil: error.message }
+  }
+  return { reminder: data as Reminder }
 }
 
 export async function slettReminder(id: string): Promise<void> {

@@ -59,13 +59,13 @@ export default function ReminderKort({ tema }: { tema: Tema }) {
     setFeil('')
     // datetime-local tolkes i enhetens tidssone (Oslo for norske brukere)
     const iso = new Date(tid).toISOString()
-    const ny = await leggTilReminder(brukerId, tekst.trim(), iso)
-    if (ny) {
-      setListe(l => [...l, ny].sort((a, b) => a.tid.localeCompare(b.tid)))
+    const { reminder, feil } = await leggTilReminder(brukerId, tekst.trim(), iso)
+    if (reminder) {
+      setListe(l => [...l, reminder].sort((a, b) => a.tid.localeCompare(b.tid)))
       setTekst('')
       setTid('')
     } else {
-      setFeil('Kunne ikke lagre. Prøv igjen.')
+      setFeil(feil || 'Kunne ikke lagre. Prøv igjen.')
     }
     setJobber(false)
   }
