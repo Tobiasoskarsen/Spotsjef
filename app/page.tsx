@@ -28,7 +28,7 @@ export default function Home() {
   const [morgendagPriser, setMorgendagPriser] = useState<Pris[]>([])
   const [, setHistorikk] = useState<HistorikkPunkt[]>([])
   const [zone, setZone] = useState('NO1')
-  const [valgtApparat, setValgtApparat] = useState<Apparat>(APPARATER[0])
+  const [valgtApparat, setValgtApparat] = useState<Apparat | null>(null)
   const [anbefaling, setAnbefaling] = useState<Anbefaling | null>(null)
   const [laster, setLaster] = useState(true)
   const [feil, setFeil] = useState('')
@@ -47,7 +47,8 @@ export default function Home() {
   const [visEgetSkjema, setVisEgetSkjema] = useState(false)
   const [redigererNavn, setRedigererNavn] = useState<string | null>(null)
   const [skjemaFeil, setSkjemaFeil] = useState('')
-  const [alleApparater, setAlleApparater] = useState<Apparat[]>(APPARATER)
+  // Starter TOM: nye brukere velger apparater i introen (eller hopper over)
+  const [alleApparater, setAlleApparater] = useState<Apparat[]>([])
   const [delt, setDelt] = useState(false)
   const [alarmGrense, setAlarmGrense] = useState('')
   const [alarmAktiv, setAlarmAktiv] = useState(false)
@@ -87,9 +88,9 @@ export default function Home() {
       const lagretListe = localStorage.getItem('apparater')
       if (lagretListe) {
         const liste: Apparat[] = JSON.parse(lagretListe)
-        if (Array.isArray(liste) && liste.length) {
+        if (Array.isArray(liste)) {
           setAlleApparater(liste)
-          setValgtApparat(liste[0])
+          setValgtApparat(liste[0] ?? null)
         }
       } else {
         const gamle = localStorage.getItem('egneApparater')
@@ -97,11 +98,17 @@ export default function Home() {
         if (Array.isArray(egne) && egne.length) {
           const slått = [...APPARATER, ...egne]
           setAlleApparater(slått)
+          setValgtApparat(slått[0])
           localStorage.setItem('apparater', JSON.stringify(slått))
+        } else if (localStorage.getItem('flyt:introSett') === '1') {
+          // Eksisterende bruker fra før apparat-valget i introen: behold standardlista
+          setAlleApparater(APPARATER)
+          setValgtApparat(APPARATER[0])
         }
+        // Helt ny bruker: lista forblir tom – introen fyller den (eller man hopper over)
       }
     } catch {
-      // Ugyldig lagret data — ignorer og bruk standardlista
+      // Ugyldig lagret data — ignorer og start med tom liste
     }
   }, [])
 
@@ -208,7 +215,7 @@ export default function Home() {
 
   useEffect(() => {
     const data = visIdag ? priser : morgendagPriser
-    setAnbefaling(beregnAnbefaling(data, valgtApparat, frist ? parseInt(frist) : undefined, nettleieKr))
+    setAnbefaling(valgtApparat ? beregnAnbefaling(data, valgtApparat, frist ? parseInt(frist) : undefined, nettleieKr) : null)
   }, [priser, morgendagPriser, valgtApparat, visIdag, frist, nettleieKr])
 
   useEffect(() => {
@@ -352,11 +359,11 @@ export default function Home() {
   }
 
   function slettApparat(a: Apparat) {
-    if (alleApparater.length <= 1) return // behold alltid minst ett apparat
+    // Lista kan nå bli helt tom – Planlegg viser en egen tom-tilstand da
     const oppdatert = alleApparater.filter(x => x.navn !== a.navn)
     setAlleApparater(oppdatert)
     lagreApparater(oppdatert)
-    if (valgtApparat.navn === a.navn) setValgtApparat(oppdatert[0])
+    if (valgtApparat?.navn === a.navn) setValgtApparat(oppdatert[0] ?? null)
     if (redigererNavn === a.navn) avbrytSkjema()
   }
 
@@ -369,7 +376,7 @@ export default function Home() {
   }
 
   function delAnbefaling() {
-    if (!anbefaling) return
+    if (!anbefaling || !valgtApparat) return
     navigator.clipboard.writeText(
       `Flyt: Kjør ${valgtApparat.navn} kl. ${anbefaling.startTime}–${anbefaling.sluttTime} — snitt ${anbefaling.snittPris} øre/kWh, ca. ${anbefaling.kostnad} kr`
     )
@@ -396,11 +403,19 @@ export default function Home() {
   const visData = visIdag ? priser : morgendagPriser
   const { min: minPris, max: maxPris, snitt: snittPris } = prisStatistikk(visData)
   // Kostnad ved å kjøre apparatet nå (kun relevant når vi ser på i dag)
-  const kjorNaaKostnad = visIdag ? kostnadForStart(visData, valgtApparat, new Date().getHours(), nettleieKr) : null
+  const kjorNaaKostnad = visIdag && valgtApparat ? kostnadForStart(visData, valgtApparat, new Date().getHours(), nettleieKr) : null
 
   return (
    <>
-    {visIntro && <Intro tema={tema} onStart={() => { localStorage.setItem('flyt:introSett', '1'); setVisIntro(false) }} />}
+    {visIntro && <Intro tema={tema} onStart={(valgteApparater) => {
+      localStorage.setItem('flyt:introSett', '1')
+      // Apparatene brukeren valgte i introen blir lista – ingen forhåndsantakelser.
+      // Lagres også når den er tom (hopp over), så lista forblir tom til man fyller den.
+      setAlleApparater(valgteApparater)
+      setValgtApparat(valgteApparater[0] ?? null)
+      localStorage.setItem('apparater', JSON.stringify(valgteApparater))
+      setVisIntro(false)
+    }} />}
     <main style={{ minHeight: '100vh', background: tema.bgGradient, backgroundColor: tema.bg, padding: '24px 16px 104px', maxWidth: '680px', margin: '0 auto', transition: 'background 0.3s', colorScheme: darkMode ? 'dark' : 'light' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -485,7 +500,9 @@ export default function Home() {
               </div>
             </div>
 
-            <Kalkulator alleApparater={alleApparater} priser={priser} nettleie={nettleieKr} darkMode={darkMode} tema={tema} />
+            {alleApparater.length > 0 && (
+              <Kalkulator alleApparater={alleApparater} priser={priser} nettleie={nettleieKr} darkMode={darkMode} tema={tema} />
+            )}
           </div>
         </>
       )}

@@ -8,7 +8,7 @@ type Props = {
   maxPris: number
   snittPris: string
   anbefaling: Anbefaling | null
-  valgtApparat: Apparat
+  valgtApparat: Apparat | null
   laster: boolean
   tema: Tema
 }
@@ -53,7 +53,7 @@ export default function PrisGraf({ data, minPris, maxPris, snittPris, anbefaling
           <Tooltip formatter={(v) => [`${v} øre/kWh`]} contentStyle={{ background: tema.cardBg, border: 'none', borderRadius: '12px', fontSize: '12px', color: tema.tekst, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
           <Bar dataKey="pris" radius={[5, 5, 0, 0]}>
             {data.map((entry, i) => {
-              const iVindu = anbefaling && i >= anbefaling.startIdx && i < anbefaling.startIdx + Math.ceil(valgtApparat.timer)
+              const iVindu = anbefaling && valgtApparat && i >= anbefaling.startIdx && i < anbefaling.startIdx + Math.ceil(valgtApparat.timer)
               return <Cell key={i} fill={getColor(entry.pris, minPris, maxPris)} opacity={iVindu ? 1 : 0.55} />
             })}
           </Bar>
