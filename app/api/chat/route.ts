@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       'Bruk KONTEKST nedenfor når spørsmålet handler om brukerens egen dag (pris, vær, påminnelser). Ikke finn på tall eller tidspunkter du ikke har – si heller at du ikke vet det ennå.',
       'Du kan ikke endre innstillinger eller lage påminnelser selv ennå; forklar heller hvor i appen brukeren gjør det (Påminnelser-fanen, Planlegg, Mer).',
       'Ikke vis resonnementet ditt – gi bare det ferdige svaret.',
+      'Skriv som vanlig tekst. IKKE bruk markdown eller formateringstegn som ** for fet skrift, # for overskrifter eller * for punktlister. Skriv naturlig, gjerne med korte avsnitt.',
       kontekst ? `\nKONTEKST om brukeren akkurat nå:\n${kontekst}` : '',
     ].join('\n')
 

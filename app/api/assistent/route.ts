@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       '- Ikke gjenta alle punktene ordrett – løft frem det viktigste først.',
       '- Vær varm og naturlig. Bruk navnet hvis det er oppgitt.',
       '- Ikke bruk emoji. Svar KUN med oppsummeringen, ingen innledning eller overskrift.',
+      '- Skriv som vanlig tekst, uten markdown/formateringstegn (ingen ** eller *).',
       navn ? `\nBrukerens navn: ${navn}` : '',
       `\nPunkter:\n${fakta}`,
     ].join('\n')
