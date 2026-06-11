@@ -1,0 +1,246 @@
+'use client'
+import { useCallback, useEffect, useState } from 'react'
+import { NAER } from '@/lib/naerTema'
+import { useBruker } from '@/lib/bruker'
+import {
+  NaerReminder, Kvittering, hentMineHendelser, hentVentendeKvitteringer,
+  bekreftKvittering, bekreftReminderTidlig, hentMinKobling, settMottakerEnhet,
+} from '@/lib/naer'
+import { VaerTime, hentVaer, tolkSymbol } from '@/lib/vaer'
+import { hentAltData, prisStatistikk, lesPrisCache } from '@/lib/priser'
+import { Pris } from '@/lib/types'
+
+// Nær – mottakerskjermen. ÉN skjerm, ingen menyer, umulig å rote seg bort.
+// Viser dato + vær, neste hendelse med stor «Ferdig ✓»-knapp, og praktiske
+// kort kun når de er relevante. Alt i stor skrift og høy kontrast.
+//
+// Offline-tolerant: siste kjente påminnelser caches lokalt og vises uten nett.
+
+const CACHE_NOKKEL = 'naer:hendelser'
+
+type Hovedkort =
+  | { type: 'kvittering'; kvittering: Kvittering }
+  | { type: 'reminder'; reminder: NaerReminder }
+  | null
+
+export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void }) {
+  const { brukerId, laster: lasterBruker } = useBruker()
+  const [hendelser, setHendelser] = useState<NaerReminder[]>([])
+  const [ventende, setVentende] = useState<Kvittering[]>([])
+  const [vaer, setVaer] = useState<VaerTime[]>([])
+  const [priser, setPriser] = useState<Pris[]>([])
+  const [koblingNavn, setKoblingNavn] = useState('')
+  const [naa, setNaa] = useState(new Date())
+  const [nettopBekreftet, setNettopBekreftet] = useState(false)
+  const [jobber, setJobber] = useState(false)
+
+  // Klokka og «i dag» skal alltid stemme – oppdater hvert minutt
+  useEffect(() => {
+    const t = setInterval(() => setNaa(new Date()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+
+  const lastData = useCallback(async (uid: string) => {
+    const [h, v] = await Promise.all([hentMineHendelser(uid), hentVentendeKvitteringer(uid)])
+    // Nådde vi databasen, oppdater cache; ellers beholdes siste kjente
+    if (h.length > 0 || v.length === 0) {
+      try { localStorage.setItem(CACHE_NOKKEL, JSON.stringify(h)) } catch {}
+    }
+    setHendelser(h)
+    setVentende(v)
+  }, [])
+
+  // Påminnelser + kvitteringer (poll hvert minutt – skjermen står gjerne på)
+  useEffect(() => {
+    if (lasterBruker) return
+    if (!brukerId) {
+      // Uten nett/innlogging: vis siste kjente fra cache
+      try {
+        const c = localStorage.getItem(CACHE_NOKKEL)
+        if (c) setHendelser(JSON.parse(c))
+      } catch {}
+      return
+    }
+    lastData(brukerId)
+    hentMinKobling(brukerId).then(r => { if (r) setKoblingNavn(r.mottakerNavn) })
+    const t = setInterval(() => lastData(brukerId), 60_000)
+    return () => clearInterval(t)
+  }, [brukerId, lasterBruker, lastData])
+
+  // Vær og strøm (rolig oppdatering hvert 30. min)
+  useEffect(() => {
+    const zone = localStorage.getItem('zone') || 'NO1'
+    const last = () => {
+      hentVaer(zone).then(setVaer).catch(() => {})
+      const cache = lesPrisCache(zone)
+      if (cache) setPriser(cache.data.idag)
+      hentAltData(zone).then(d => { if (d.idag.length) setPriser(d.idag) }).catch(() => {})
+    }
+    last()
+    const t = setInterval(last, 30 * 60_000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Hovedkortet: eldste ubekreftede kvittering, ellers neste hendelse som ikke
+  // er håndtert (også nylig forfalte – de skal vises selv om cron-en henger etter)
+  const hovedkort: Hovedkort = ventende.length > 0
+    ? { type: 'kvittering', kvittering: ventende[0] }
+    : (() => {
+        const neste = hendelser.find(h => !h.varslet)
+        return neste ? { type: 'reminder', reminder: neste } : null
+      })()
+
+  // Resten av dagens hendelser (uten den som vises i hovedkortet)
+  const hovedId = hovedkort?.type === 'reminder' ? hovedkort.reminder.id : null
+  const senereIdag = hendelser.filter(h => {
+    const d = new Date(h.tid)
+    return !h.varslet && h.id !== hovedId && d > naa && d.toDateString() === naa.toDateString()
+  })
+
+  // Strømkortet vises KUN når det faktisk er et godt tidspunkt
+  const time = naa.getHours()
+  const prisNaa = priser[time]?.pris
+  const { snitt } = prisStatistikk(priser)
+  const stromBillig = prisNaa !== undefined && priser.length === 24 && prisNaa < parseFloat(snitt) * 0.7
+
+  async function trykkFerdig() {
+    if (!hovedkort || jobber) return
+    setJobber(true)
+    let ok = false
+    if (hovedkort.type === 'kvittering') {
+      ok = await bekreftKvittering(hovedkort.kvittering.id)
+    } else if (brukerId) {
+      ok = await bekreftReminderTidlig(brukerId, hovedkort.reminder)
+    }
+    if (ok) {
+      setNettopBekreftet(true)
+      setTimeout(() => setNettopBekreftet(false), 4000)
+      if (brukerId) await lastData(brukerId)
+    }
+    setJobber(false)
+  }
+
+  function visKl(iso: string): string {
+    return new Date(iso).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const dagTekst = naa.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+  const vaerNaa = vaer[0]
+  const symbol = vaerNaa ? tolkSymbol(vaerNaa.symbol) : null
+
+  const kortStil: React.CSSProperties = {
+    background: NAER.kortBg, borderRadius: NAER.radius, padding: '28px',
+    boxShadow: NAER.skygge, border: `1px solid ${NAER.border}`,
+  }
+
+  return (
+    <main style={{
+      minHeight: '100vh', background: NAER.bg, padding: '32px 20px 24px',
+      maxWidth: '560px', margin: '0 auto', display: 'flex', flexDirection: 'column',
+      gap: NAER.mellomrom, colorScheme: 'light',
+      fontFamily: 'inherit',
+    }}>
+      {/* Dato og vær – det øverste blikket */}
+      <header style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+        <p style={{ fontSize: NAER.fontKjempe, fontWeight: 700, color: NAER.tekst, margin: 0, lineHeight: 1.15, textTransform: 'capitalize' }}>
+          {dagTekst}
+        </p>
+        {vaerNaa && vaerNaa.temp !== null && symbol && (
+          <p style={{ fontSize: NAER.fontMedium, color: NAER.subtekst, margin: '10px 0 0', fontWeight: 500 }}>
+            {symbol.emoji} {Math.round(vaerNaa.temp)}° · {symbol.tekst}
+          </p>
+        )}
+      </header>
+
+      {/* Hovedkortet: neste hendelse + stor Ferdig-knapp */}
+      {nettopBekreftet ? (
+        <div style={{ ...kortStil, background: NAER.gronnLys, textAlign: 'center' }}>
+          <p style={{ fontSize: NAER.fontStor, fontWeight: 700, color: NAER.gronn, margin: 0 }}>
+            Notert! Godt jobbet ✓
+          </p>
+        </div>
+      ) : hovedkort ? (
+        <div style={kortStil}>
+          <p style={{ fontSize: NAER.fontStor, fontWeight: 700, color: NAER.tekst, margin: 0, lineHeight: 1.3 }}>
+            {hovedkort.type === 'kvittering' ? hovedkort.kvittering.tekst : hovedkort.reminder.tekst}
+          </p>
+          <p style={{ fontSize: NAER.fontMedium, color: NAER.subtekst, margin: '12px 0 22px', fontWeight: 500 }}>
+            {hovedkort.type === 'kvittering'
+              ? `Kl. ${visKl(hovedkort.kvittering.planlagt)}`
+              : new Date(hovedkort.reminder.tid).toDateString() === naa.toDateString()
+                ? `I dag kl. ${visKl(hovedkort.reminder.tid)}`
+                : new Date(hovedkort.reminder.tid).toLocaleString('nb-NO', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
+          </p>
+          <button
+            type="button"
+            onClick={trykkFerdig}
+            disabled={jobber}
+            style={{
+              width: '100%', height: NAER.knappHoyde, borderRadius: '18px', border: 'none',
+              background: NAER.gronn, color: '#ffffff', fontSize: NAER.fontMedium,
+              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              opacity: jobber ? 0.7 : 1,
+            }}
+          >
+            {jobber ? 'Lagrer …' : 'Ferdig ✓'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ ...kortStil, textAlign: 'center' }}>
+          <p style={{ fontSize: NAER.fontStor, fontWeight: 700, color: NAER.tekst, margin: 0 }}>
+            Alt er i orden ✓
+          </p>
+          <p style={{ fontSize: NAER.fontNormal, color: NAER.subtekst, margin: '10px 0 0' }}>
+            Ingen flere påminnelser akkurat nå.
+          </p>
+        </div>
+      )}
+
+      {/* Senere i dag – kun tekst, ingen knapper */}
+      {senereIdag.length > 0 && (
+        <div style={{ ...kortStil, padding: '22px 28px' }}>
+          <p style={{ fontSize: NAER.fontLiten, color: NAER.subtekst, margin: '0 0 10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Senere i dag
+          </p>
+          {senereIdag.map(h => (
+            <p key={h.id} style={{ fontSize: NAER.fontNormal, color: NAER.tekst, margin: '8px 0 0', lineHeight: 1.4 }}>
+              <strong>{visKl(h.tid)}</strong> · {h.tekst}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Strøm – kun når det faktisk er nyttig å vite */}
+      {stromBillig && (
+        <div style={{ ...kortStil, background: NAER.gul, padding: '22px 28px' }}>
+          <p style={{ fontSize: NAER.fontNormal, color: NAER.tekst, margin: 0, lineHeight: 1.5 }}>
+            💡 Strømmen er billig nå – fint tidspunkt for vaskemaskin eller lading.
+          </p>
+        </div>
+      )}
+
+      {/* Rolig bunn – hvem som er med deg */}
+      <footer style={{ marginTop: 'auto', textAlign: 'center', paddingTop: '12px' }}>
+        <p style={{ fontSize: NAER.fontLiten, color: NAER.subtekst, margin: 0 }}>
+          {koblingNavn ? 'Familien din har satt opp denne skjermen for deg 💙' : 'Nær'}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('Vil du avslutte den enkle visningen på denne enheten?')) {
+              settMottakerEnhet(false)
+              onAvslutt()
+            }
+          }}
+          style={{
+            marginTop: '10px', padding: '8px 14px', borderRadius: '10px', border: 'none',
+            background: 'transparent', color: NAER.subtekst, opacity: 0.55,
+            fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Avslutt enkel visning
+        </button>
+      </footer>
+    </main>
+  )
+}

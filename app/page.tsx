@@ -24,6 +24,10 @@ import ReminderKort from '@/components/ReminderKort'
 import Konto from '@/components/Konto'
 import KalenderKort from '@/components/KalenderKort'
 import Intro from '@/components/Intro'
+import MottakerSkjerm from '@/components/MottakerSkjerm'
+import MinePersoner from '@/components/MinePersoner'
+import NaerOppsett from '@/components/NaerOppsett'
+import { erMottakerEnhet } from '@/lib/naer'
 
 
 export default function Home() {
@@ -59,6 +63,9 @@ export default function Home() {
   const [lasterAI, setLasterAI] = useState(false)
   const [side, setSide] = useState<Side>('hjem')
   const [visIntro, setVisIntro] = useState(false)
+  // Nær: er denne enheten satt opp som mottaker-skjerm? (null = ikke avklart
+  // ennå – unngår hydration-hopp før localStorage er lest)
+  const [mottakerModus, setMottakerModus] = useState<boolean | null>(null)
   const [frist, setFrist] = useState('')
   const [nettleie, setNettleie] = useState('')
   const [vaer, setVaer] = useState<VaerTime[]>([])
@@ -67,6 +74,7 @@ export default function Home() {
   // Vis introen kun første gang (til man trykker «Kom i gang»)
   useEffect(() => {
     if (localStorage.getItem('flyt:introSett') !== '1') setVisIntro(true)
+    setMottakerModus(erMottakerEnhet())
   }, [])
 
   const tema = lagTema(darkMode)
@@ -170,9 +178,10 @@ export default function Home() {
   }, [darkMode])
 
   // La området rundt/under det sentrerte innholdet følge temaet
+  // (mottaker-skjermen er alltid lys og varm)
   useEffect(() => {
-    document.body.style.background = tema.bg
-  }, [tema.bg])
+    document.body.style.background = mottakerModus ? '#faf7f1' : tema.bg
+  }, [tema.bg, mottakerModus])
 
   useEffect(() => {
     localStorage.setItem('nettleie', nettleie)
@@ -408,6 +417,12 @@ export default function Home() {
   // Kostnad ved å kjøre apparatet nå (kun relevant når vi ser på i dag)
   const kjorNaaKostnad = visIdag && valgtApparat ? kostnadForStart(visData, valgtApparat, new Date().getHours(), nettleieKr) : null
 
+  // Nær: mottaker-enheter får KUN den enkle skjermen – ingen faner, ingen meny
+  if (mottakerModus === null) return null
+  if (mottakerModus) {
+    return <MottakerSkjerm onAvslutt={() => setMottakerModus(false)} />
+  }
+
   return (
    <>
     {visIntro && <Intro tema={tema} onStart={(valgteApparater) => {
@@ -517,11 +532,18 @@ export default function Home() {
         </>
       )}
 
-      {side === 'paminnelser' && <ReminderKort tema={tema} />}
+      {side === 'paminnelser' && (
+        <>
+          <MinePersoner tema={tema} />
+          <ReminderKort tema={tema} />
+        </>
+      )}
 
       {side === 'mer' && (
         <>
           <Konto tema={tema} />
+
+          <NaerOppsett tema={tema} onAktiver={() => setMottakerModus(true)} />
 
           <KalenderKort tema={tema} />
 

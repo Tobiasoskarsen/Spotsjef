@@ -123,13 +123,16 @@ export async function settSoppVarslet(endpoint: string, dato: string): Promise<v
 }
 
 // Egne påminnelser som har forfalt og ikke er varslet ennå.
-export type ForfaltReminder = { id: string; user_id: string; tekst: string }
+export type ForfaltReminder = {
+  id: string; user_id: string; tekst: string; tid: string
+  opprettet_av: string | null; gjentakelse: 'daglig' | 'ukentlig' | null
+}
 export async function hentForfalteReminder(): Promise<ForfaltReminder[]> {
   const r = getDb()
   if (!r) return []
   const { data } = await r
     .from('reminders')
-    .select('id, user_id, tekst')
+    .select('id, user_id, tekst, tid, opprettet_av, gjentakelse')
     .lte('tid', new Date().toISOString())
     .eq('varslet', false)
   return (data ?? []) as ForfaltReminder[]
@@ -139,6 +142,108 @@ export async function merkReminderVarslet(id: string): Promise<void> {
   const r = getDb()
   if (!r) return
   await r.from('reminders').update({ varslet: true }).eq('id', id)
+}
+
+// ── Nær: kvitteringer + eskalering ──────────────────────────────────────────
+
+// Logger at en påminnelse forfalt. `levert` settes kun hvis push faktisk gikk
+// gjennom – pårørende skal aldri se en falsk «levert». Aldri stille feiling.
+export async function opprettKvittering(
+  rem: ForfaltReminder,
+  levert: boolean,
+): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from('kvitteringer').insert({
+    reminder_id: rem.id,
+    user_id: rem.user_id,
+    tekst: rem.tekst,
+    planlagt: rem.tid,
+    levert: levert ? new Date().toISOString() : null,
+  })
+}
+
+// Flytter en gjentakende påminnelse til neste forekomst.
+export async function flyttReminder(id: string, nyTidISO: string): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from('reminders').update({ tid: nyTidISO, varslet: false }).eq('id', id)
+}
+
+// Kvitteringer som bør eskaleres: forfalt, ubekreftet, ikke alt eskalert, og
+// opprettet av en ANNEN enn mottakeren (pårørende-påminnelser). Per relasjon
+// gjelder egen tidsgrense (eskaler_min, standard 30).
+export type Eskalering = {
+  kvitteringId: string
+  parorendeId: string
+  mottakerNavn: string
+  tekst: string
+  planlagt: string
+}
+
+export async function hentEskaleringer(): Promise<Eskalering[]> {
+  const r = getDb()
+  if (!r) return []
+  // Kandidater: ubekreftet + ikke eskalert, siste døgn (eldre ting purrer vi ikke på)
+  const fra = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { data: kvitteringer } = await r
+    .from('kvitteringer')
+    .select('id, reminder_id, user_id, tekst, planlagt, opprettet')
+    .is('bekreftet', null)
+    .eq('eskalert', false)
+    .gte('opprettet', fra)
+  const kandidater = (kvitteringer ?? []) as {
+    id: string; reminder_id: string; user_id: string; tekst: string; planlagt: string; opprettet: string
+  }[]
+  if (kandidater.length === 0) return []
+
+  // Hvem opprettet påminnelsene? Kun de fra pårørende skal eskaleres.
+  const { data: reminders } = await r
+    .from('reminders')
+    .select('id, user_id, opprettet_av')
+    .in('id', [...new Set(kandidater.map(k => k.reminder_id))])
+  const opprettetAv: Record<string, string | null> = {}
+  for (const rem of (reminders ?? []) as { id: string; user_id: string; opprettet_av: string | null }[]) {
+    opprettetAv[rem.id] = rem.opprettet_av && rem.opprettet_av !== rem.user_id ? rem.opprettet_av : null
+  }
+
+  // Aktive relasjoner gir navn + tidsgrense
+  const { data: relasjoner } = await r
+    .from('relasjoner')
+    .select('parorende_id, mottaker_id, mottaker_navn, eskaler_min')
+    .eq('status', 'aktiv')
+    .in('mottaker_id', [...new Set(kandidater.map(k => k.user_id))])
+  const relasjonKart: Record<string, { navn: string; eskalerMin: number }> = {}
+  for (const rel of (relasjoner ?? []) as { parorende_id: string; mottaker_id: string; mottaker_navn: string; eskaler_min: number }[]) {
+    relasjonKart[`${rel.parorende_id}:${rel.mottaker_id}`] = {
+      navn: rel.mottaker_navn,
+      eskalerMin: rel.eskaler_min ?? 30,
+    }
+  }
+
+  const naa = Date.now()
+  const resultat: Eskalering[] = []
+  for (const k of kandidater) {
+    const parorendeId = opprettetAv[k.reminder_id]
+    if (!parorendeId) continue
+    const rel = relasjonKart[`${parorendeId}:${k.user_id}`]
+    if (!rel) continue // samtykket kan være trukket
+    if (naa - new Date(k.opprettet).getTime() < rel.eskalerMin * 60_000) continue
+    resultat.push({
+      kvitteringId: k.id,
+      parorendeId,
+      mottakerNavn: rel.navn,
+      tekst: k.tekst,
+      planlagt: k.planlagt,
+    })
+  }
+  return resultat
+}
+
+export async function merkEskalert(kvitteringId: string): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from('kvitteringer').update({ eskalert: true }).eq('id', kvitteringId)
 }
 
 // Sender ett varsel. Returnerer true ved suksess. Fjerner utløpte abonnement.

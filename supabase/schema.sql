@@ -88,3 +88,146 @@ create policy "egne reminders oppdater" on reminders for update using (auth.uid(
 
 drop policy if exists "egne reminders slett" on reminders;
 create policy "egne reminders slett" on reminders for delete using (auth.uid() = user_id);
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- NÆR – pårørende hjelper en mottaker med hverdagen
+-- Pårørende oppretter en invitasjon (kode). Mottakeren taster koden og
+-- SAMTYKKER – først da kobles kontoene. Kvitteringer logger levert/bekreftet
+-- per påminnelse, og er det pårørende faktisk betaler for.
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- ── Relasjoner: pårørende ↔ mottaker ────────────────────────────────────────
+create table if not exists relasjoner (
+  id              uuid primary key default gen_random_uuid(),
+  parorende_id    uuid not null references auth.users(id) on delete cascade,
+  mottaker_id     uuid references auth.users(id) on delete cascade, -- null til samtykke
+  mottaker_navn   text not null default '',      -- hva pårørende kaller personen («Mamma»)
+  invitasjonskode text unique not null,          -- kort kode mottakeren taster inn
+  status          text not null default 'venter' check (status in ('venter','aktiv')),
+  eskaler_min     smallint not null default 30,  -- varsle pårørende etter X min ubekreftet
+  opprettet       timestamptz not null default now(),
+  akseptert       timestamptz
+);
+
+alter table relasjoner enable row level security;
+
+-- Pårørende ser/styrer sine egne relasjoner
+drop policy if exists "parorende relasjon les" on relasjoner;
+create policy "parorende relasjon les" on relasjoner for select using (auth.uid() = parorende_id);
+
+drop policy if exists "parorende relasjon opprett" on relasjoner;
+create policy "parorende relasjon opprett" on relasjoner for insert
+  with check (auth.uid() = parorende_id and status = 'venter' and mottaker_id is null);
+
+drop policy if exists "parorende relasjon oppdater" on relasjoner;
+create policy "parorende relasjon oppdater" on relasjoner for update
+  using (auth.uid() = parorende_id) with check (auth.uid() = parorende_id);
+
+drop policy if exists "parorende relasjon slett" on relasjoner;
+create policy "parorende relasjon slett" on relasjoner for delete using (auth.uid() = parorende_id);
+
+-- Mottakeren ser sin kobling og kan trekke samtykket (slette den)
+drop policy if exists "mottaker relasjon les" on relasjoner;
+create policy "mottaker relasjon les" on relasjoner for select using (auth.uid() = mottaker_id);
+
+drop policy if exists "mottaker relasjon slett" on relasjoner;
+create policy "mottaker relasjon slett" on relasjoner for delete using (auth.uid() = mottaker_id);
+
+-- Samtykke-funksjonen: mottakeren taster koden → kobles. SECURITY DEFINER fordi
+-- mottakeren ikke kan se raden (RLS) før hen faktisk er koblet til den.
+create or replace function aksepter_invitasjon(kode text)
+returns table (relasjon_id uuid, mottaker_navn text)
+language plpgsql security definer set search_path = public as $$
+declare r relasjoner%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Du må være innlogget.';
+  end if;
+  select * into r from relasjoner
+    where invitasjonskode = upper(trim(kode)) and status = 'venter'
+    limit 1;
+  if not found then
+    raise exception 'Fant ingen invitasjon med denne koden.';
+  end if;
+  if r.parorende_id = auth.uid() then
+    raise exception 'Du kan ikke koble til deg selv.';
+  end if;
+  update relasjoner set mottaker_id = auth.uid(), status = 'aktiv', akseptert = now()
+    where id = r.id;
+  -- Merk kontoen som mottaker, så enkel visning kan følge kontoen
+  insert into profiles (id, rolle) values (auth.uid(), 'mottaker')
+    on conflict (id) do update set rolle = 'mottaker';
+  return query select r.id, r.mottaker_navn;
+end $$;
+
+revoke all on function aksepter_invitasjon(text) from public;
+grant execute on function aksepter_invitasjon(text) to authenticated;
+
+-- Rolle på profilen ('mottaker' settes av aksepter_invitasjon)
+alter table profiles add column if not exists rolle text;
+
+-- ── Reminders: pårørende kan administrere mottakerens påminnelser ───────────
+alter table reminders add column if not exists opprettet_av uuid references auth.users(id);
+alter table reminders add column if not exists gjentakelse text check (gjentakelse in ('daglig','ukentlig'));
+
+drop policy if exists "parorende reminders les" on reminders;
+create policy "parorende reminders les" on reminders for select using (
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = reminders.user_id and r.status = 'aktiv')
+);
+
+drop policy if exists "parorende reminders opprett" on reminders;
+create policy "parorende reminders opprett" on reminders for insert with check (
+  opprettet_av = auth.uid() and
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = reminders.user_id and r.status = 'aktiv')
+);
+
+drop policy if exists "parorende reminders oppdater" on reminders;
+create policy "parorende reminders oppdater" on reminders for update using (
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = reminders.user_id and r.status = 'aktiv')
+);
+
+drop policy if exists "parorende reminders slett" on reminders;
+create policy "parorende reminders slett" on reminders for delete using (
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = reminders.user_id and r.status = 'aktiv')
+);
+
+-- ── Kvitteringer: levert/bekreftet per forekomst av en påminnelse ───────────
+create table if not exists kvitteringer (
+  id          uuid primary key default gen_random_uuid(),
+  reminder_id uuid not null references reminders(id) on delete cascade,
+  user_id     uuid not null references auth.users(id) on delete cascade, -- mottakeren
+  tekst       text not null default '',     -- kopi av påminnelsesteksten (lesbar historikk)
+  planlagt    timestamptz not null,         -- når påminnelsen skulle skje
+  levert      timestamptz,                  -- når push faktisk ble sendt (null = nådde ikke frem)
+  bekreftet   timestamptz,                  -- når mottakeren trykket «Ferdig ✓»
+  eskalert    boolean not null default false, -- har vi varslet pårørende om manglende bekreftelse?
+  opprettet   timestamptz not null default now()
+);
+
+create index if not exists kvitteringer_reminder on kvitteringer (reminder_id, planlagt desc);
+create index if not exists kvitteringer_bruker on kvitteringer (user_id, bekreftet);
+
+alter table kvitteringer enable row level security;
+
+-- Mottakeren ser sine kvitteringer og bekrefter dem
+drop policy if exists "mottaker kvittering les" on kvitteringer;
+create policy "mottaker kvittering les" on kvitteringer for select using (auth.uid() = user_id);
+
+drop policy if exists "mottaker kvittering opprett" on kvitteringer;
+create policy "mottaker kvittering opprett" on kvitteringer for insert with check (auth.uid() = user_id);
+
+drop policy if exists "mottaker kvittering oppdater" on kvitteringer;
+create policy "mottaker kvittering oppdater" on kvitteringer for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Pårørende ser kvitteringene til sine mottakere (selve produktet)
+drop policy if exists "parorende kvittering les" on kvitteringer;
+create policy "parorende kvittering les" on kvitteringer for select using (
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = kvitteringer.user_id and r.status = 'aktiv')
+);

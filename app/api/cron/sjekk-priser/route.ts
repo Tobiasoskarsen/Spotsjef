@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet } from '@/lib/push'
+import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet, opprettKvittering, flyttReminder, hentEskaleringer, merkEskalert } from '@/lib/push'
+import { nesteForekomst } from '@/lib/tid'
 import { formaterPriser, formatDato } from '@/lib/priser'
 import { ApiPris } from '@/lib/types'
 
@@ -100,29 +101,59 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // --- Egne påminnelser som har forfalt ---
+  // --- Påminnelser som har forfalt ---
   // Eksplisitte, tidsbestemte påminnelser sendes uavhengig av stilletimer
   // (brukeren valgte selv tidspunktet).
   let sendtReminder = 0
   const forfalte = await hentForfalteReminder()
-  if (forfalte.length > 0) {
-    const subsPerBruker: Record<string, typeof abonnement> = {}
-    for (const a of abonnement) {
-      if (a.userId) (subsPerBruker[a.userId] ??= []).push(a)
+  const subsPerBruker: Record<string, typeof abonnement> = {}
+  for (const a of abonnement) {
+    if (a.userId) (subsPerBruker[a.userId] ??= []).push(a)
+  }
+  for (const rem of forfalte) {
+    const subs = subsPerBruker[rem.user_id] ?? []
+    let nadd = false
+    for (const a of subs) {
+      if (await sendVarsel(a, 'Nær — påminnelse', rem.tekst)) nadd = true
     }
-    for (const rem of forfalte) {
-      const subs = subsPerBruker[rem.user_id]
-      if (!subs || subs.length === 0) continue // ingen enhet å varsle ennå
-      let nadd = false
-      for (const a of subs) {
-        if (await sendVarsel(a, 'Flyt — påminnelse', rem.tekst)) nadd = true
-      }
-      if (nadd) {
+
+    const fraParorende = Boolean(rem.opprettet_av && rem.opprettet_av !== rem.user_id)
+    if (fraParorende) {
+      // Nær-påminnelse: logg kvittering uansett (skjermen viser den selv uten
+      // push – og «levert: null» er ærlig info til pårørende, aldri stille feiling).
+      await opprettKvittering(rem, nadd)
+      if (rem.gjentakelse) {
+        await flyttReminder(rem.id, nesteForekomst(rem.tid, rem.gjentakelse))
+      } else {
         await merkReminderVarslet(rem.id)
-        sendtReminder++
       }
+      if (nadd) sendtReminder++
+    } else if (nadd) {
+      // Egen påminnelse (Flyt-stil): som før – prøv igjen til en enhet nås
+      if (rem.gjentakelse) {
+        await flyttReminder(rem.id, nesteForekomst(rem.tid, rem.gjentakelse))
+      } else {
+        await merkReminderVarslet(rem.id)
+      }
+      sendtReminder++
     }
   }
 
-  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder })
+  // --- Nær: eskalering – varsle pårørende om ubekreftede påminnelser ---
+  // Kjernefunksjonen: «Mamma har ikke kvittert på medisinen». Markeres som
+  // eskalert uansett, så pårørende aldri spammes – status er synlig i appen.
+  let sendtEskalering = 0
+  const eskaleringer = await hentEskaleringer()
+  for (const e of eskaleringer) {
+    const subs = subsPerBruker[e.parorendeId] ?? []
+    const kl = new Date(e.planlagt).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Oslo' })
+    for (const a of subs) {
+      if (await sendVarsel(a, `Nær — ${e.mottakerNavn} har ikke bekreftet`, `«${e.tekst}» (kl. ${kl}) er ikke bekreftet ennå.`)) {
+        sendtEskalering++
+      }
+    }
+    await merkEskalert(e.kvitteringId)
+  }
+
+  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder, sendtEskalering })
 }
