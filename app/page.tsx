@@ -17,6 +17,8 @@ import Alarm from '@/components/Alarm'
 import Kalkulator from '@/components/Kalkulator'
 import BunnMeny, { Side } from '@/components/BunnMeny'
 import { VaerTime, hentVaer } from '@/lib/vaer'
+import VaerStripe from '@/components/VaerStripe'
+import DagensPriser from '@/components/DagensPriser'
 import AssistentKort from '@/components/AssistentKort'
 import ReminderKort from '@/components/ReminderKort'
 import Konto from '@/components/Konto'
@@ -443,8 +445,15 @@ export default function Home() {
       {side === 'hjem' && (
         <>
           {/* Hjem svarer på ÉN ting: hva bør jeg vite akkurat nå? */}
+          <p style={{ fontSize: '13px', color: tema.subtekst, margin: '4px 0 12px', textTransform: 'capitalize' }}>
+            {new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
           <StatusKort priser={priser} nettleieOre={nettleieOre} tariffType={tariffType} laster={laster} tema={tema} />
+          <VaerStripe vaer={vaer} tema={tema} />
           <AssistentKort vaer={vaer} priser={priser} apparater={alleApparater} tema={tema} />
+          <div style={{ marginTop: '14px' }}>
+            <DagensPriser priser={priser} tariffType={tariffType} onApne={() => setSide('planlegg')} tema={tema} />
+          </div>
         </>
       )}
 
