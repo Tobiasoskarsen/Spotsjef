@@ -260,18 +260,21 @@ export type Hilsen = {
   opprettet: string
 }
 
-// Krymper et bilde i nettleseren før opplasting (maks 1280 px, JPEG).
-// Mobilbilder er gjerne 5–10 MB – skjermen trenger en brøkdel.
+// Krymper et bilde i nettleseren før opplasting. Mobilbilder er gjerne
+// 5–10 MB – skjermen trenger en brøkdel. Grensen er 2048 px på lengste side:
+// nok til at bildet er skarpt i fullskjerm på en moderne mobil/nettbrett
+// (fotorammen viser det i hele skjermhøyden), uten å bli tungt å laste.
+// Bilder som alt er mindre skaleres ALDRI opp.
 async function komprimerBilde(fil: File): Promise<Blob> {
   const bitmap = await createImageBitmap(fil)
-  const maks = 1280
+  const maks = 2048
   const skala = Math.min(1, maks / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(bitmap.width * skala)
   canvas.height = Math.round(bitmap.height * skala)
   canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
   bitmap.close()
-  const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.82))
+  const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.85))
   return blob ?? fil
 }
 
