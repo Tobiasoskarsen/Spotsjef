@@ -1,4 +1,4 @@
-import { Tema } from '@/lib/theme'
+import { Tema } from '@/lib/naerTema'
 import { Users, Settings, type LucideIcon } from 'lucide-react'
 
 export type NaerSide = 'personer' | 'mer'

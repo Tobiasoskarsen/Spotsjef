@@ -22,7 +22,7 @@ body {
 }
 
 /* Skeleton-lasting: myk puls mens data hentes */
-@keyframes flytPuls {
+@keyframes naerPuls {
   0%,
   100% {
     opacity: 0.45;
@@ -32,7 +32,7 @@ body {
   }
 }
 .skjelett {
-  animation: flytPuls 1.4s ease-in-out infinite;
+  animation: naerPuls 1.4s ease-in-out infinite;
 }
 
 /* Subtil løft-effekt på trykkbare elementer + tydelig "trykk"-respons */
@@ -54,7 +54,7 @@ input {
 }
 
 /* Mykt innslag når kort/meldinger dukker opp */
-@keyframes flytInn {
+@keyframes naerInn {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -64,29 +64,8 @@ input {
     transform: translateY(0);
   }
 }
-.flyt-inn {
-  animation: flytInn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-/* Blinkende skrivemarkør mens AI "skriver" */
-@keyframes flytMarkor {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-}
-.flyt-markor {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 1px;
-  vertical-align: -2px;
-  background: currentColor;
-  border-radius: 1px;
-  animation: flytMarkor 0.9s step-end infinite;
+.naer-inn {
+  animation: naerInn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 ::selection {

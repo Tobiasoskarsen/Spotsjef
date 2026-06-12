@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Tema } from '@/lib/theme'
+import { Tema } from '@/lib/naerTema'
 import { useBruker } from '@/lib/bruker'
 import { aksepterInvitasjon, settMottakerEnhet } from '@/lib/naer'
 import { koblBrukerTilPush, pushStottes } from '@/lib/pushClient'

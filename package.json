@@ -1,5 +1,5 @@
 {
-  "name": "strompris-app",
+  "name": "naer",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,7 +15,6 @@
     "next": "15.5.19",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "recharts": "^3.8.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

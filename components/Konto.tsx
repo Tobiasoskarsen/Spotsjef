@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabaseClient'
-import { Tema } from '@/lib/theme'
+import { Tema } from '@/lib/naerTema'
 
 // Fase 7: kontooppgradering. Brukeren starter som anonym (data i skyen, kun denne
 // enheten). Her kan hen koble på e-post – da beholdes ALT, og man kan logge inn

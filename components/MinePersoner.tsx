@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Tema } from '@/lib/theme'
+import { Tema } from '@/lib/naerTema'
 import { useBruker } from '@/lib/bruker'
 import {
   Relasjon, NaerReminder, Kvittering,

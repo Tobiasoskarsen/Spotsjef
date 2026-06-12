@@ -1,4 +1,4 @@
--- Flyt – databaseskjema for Supabase (Postgres)
+-- Nær – databaseskjema for Supabase (Postgres)
 -- Kjør dette i Supabase: Dashboard → SQL Editor → New query → lim inn → Run.
 -- Trygt å kjøre flere ganger (IF NOT EXISTS overalt).
 

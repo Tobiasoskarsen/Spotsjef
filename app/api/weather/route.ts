@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // MET krever en identifiserende User-Agent, ellers gir de 403.
 // BYTT UT med din egen URL/e-post når appen er live.
-const USER_AGENT = 'Flyt/1.0 https://github.com/Tobiasoskarsen/Spotsjef'
+const USER_AGENT = 'Naer/1.0 https://github.com/Tobiasoskarsen/Spotsjef'
 
 // Koordinater for hovedbyen i hver prissone (maks 4 desimaler – MET-krav)
 const SONE_KOORDINATER: Record<string, { lat: number; lon: number }> = {

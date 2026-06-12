@@ -16,7 +16,7 @@ import Konto from '@/components/Konto'
 //  • Den pårørende (denne visningen) får KUN administrasjon: koble til sine
 //    personer, legge inn påminnelser og se at de blir bekreftet.
 //
-// Flyt-motoren (vær, strømpriser, push, AI-tolkning) lever videre i kulissene,
+// Motoren (vær, strømpriser, push, AI-tolkning) jobber i kulissene,
 // men er ikke synlig som egne funksjoner – Nær har én jobb.
 export default function Home() {
   const [side, setSide] = useState<NaerSide>('personer')

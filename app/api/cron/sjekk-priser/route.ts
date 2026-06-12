@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
       }
       if (nadd) sendtReminder++
     } else if (nadd) {
-      // Egen påminnelse (Flyt-stil): som før – prøv igjen til en enhet nås
+      // Egen påminnelse (uten kvittering): prøv igjen til en enhet nås
       if (rem.gjentakelse) {
         await flyttReminder(rem.id, nesteForekomst(rem.tid, rem.gjentakelse))
       } else {

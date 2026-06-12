@@ -39,11 +39,26 @@ export const NAER = {
   navn: '#23355c',
 } as const
 
-import type { Tema } from './theme'
+// Tema-formen komponentene bruker (farger, dybde, aksenter).
+export type Tema = {
+  bg: string
+  bgGradient: string
+  cardBg: string
+  border: string
+  tekst: string
+  subtekst: string
+  inputBg: string
+  accent: string
+  accentBg: string
+  accentGradient: string
+  pillBg: string
+  pillTekst: string
+  skygge: string
+  skyggeHero: string
+}
 
-// Pårørende-flatens tema, i samme Tema-form som komponentene allerede bruker.
-// Alltid lys, varm og rolig – aldri «techy». (Flyt hadde mørk modus; Nær har én
-// gjennomtenkt visning.)
+// Pårørende-flatens tema. Alltid lys, varm og rolig – aldri «techy».
+// Nær har én gjennomtenkt visning, ingen mørk modus.
 export function lagNaerTema(): Tema {
   return {
     bg: NAER.bg,

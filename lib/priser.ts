@@ -95,7 +95,7 @@ export type PrisCache = { tid: number; data: AltData }
 
 export function skrivPrisCache(zone: string, data: AltData, tid: number): void {
   try {
-    localStorage.setItem(`flyt_priser_${zone}`, JSON.stringify({ tid, dato: formatDato(new Date()), data }))
+    localStorage.setItem(`naer_priser_${zone}`, JSON.stringify({ tid, dato: formatDato(new Date()), data }))
   } catch {
     // localStorage utilgjengelig/full – cache er valgfritt, ignorer
   }
@@ -104,7 +104,7 @@ export function skrivPrisCache(zone: string, data: AltData, tid: number): void {
 // Returnerer cache kun hvis den er fra i dag (ellers ville "i dag" vist gårsdagens priser)
 export function lesPrisCache(zone: string): PrisCache | null {
   try {
-    const rå = localStorage.getItem(`flyt_priser_${zone}`)
+    const rå = localStorage.getItem(`naer_priser_${zone}`)
     if (!rå) return null
     const c = JSON.parse(rå)
     if (c?.dato !== formatDato(new Date())) return null
