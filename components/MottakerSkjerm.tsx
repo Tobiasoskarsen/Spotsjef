@@ -9,6 +9,7 @@ import {
 import { VaerTime, hentVaer, tolkSymbol } from '@/lib/vaer'
 import { hentAltData, prisStatistikk, lesPrisCache } from '@/lib/priser'
 import { Pris } from '@/lib/types'
+import { useAutoOppdater } from '@/lib/useAutoOppdater'
 
 // Nær – mottakerskjermen. ÉN skjerm, ingen menyer, umulig å rote seg bort.
 // Viser dato + vær, neste hendelse med stor «Ferdig ✓»-knapp, og praktiske
@@ -50,36 +51,35 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
     setVentende(v)
   }, [])
 
-  // Påminnelser + kvitteringer (poll hvert minutt – skjermen står gjerne på)
+  // Uten nett/innlogging: vis siste kjente påminnelser fra cache
   useEffect(() => {
-    if (lasterBruker) return
-    if (!brukerId) {
-      // Uten nett/innlogging: vis siste kjente fra cache
-      try {
-        const c = localStorage.getItem(CACHE_NOKKEL)
-        if (c) setHendelser(JSON.parse(c))
-      } catch {}
-      return
-    }
-    lastData(brukerId)
-    hentMinKobling(brukerId).then(r => { if (r) setKoblingNavn(r.mottakerNavn) })
-    const t = setInterval(() => lastData(brukerId), 60_000)
-    return () => clearInterval(t)
-  }, [brukerId, lasterBruker, lastData])
+    if (lasterBruker || brukerId) return
+    try {
+      const c = localStorage.getItem(CACHE_NOKKEL)
+      if (c) setHendelser(JSON.parse(c))
+    } catch {}
+  }, [brukerId, lasterBruker])
 
-  // Vær og strøm (rolig oppdatering hvert 30. min)
+  // Hvem har satt opp skjermen (én gang er nok)
   useEffect(() => {
+    if (!brukerId) return
+    hentMinKobling(brukerId).then(r => { if (r) setKoblingNavn(r.mottakerNavn) })
+  }, [brukerId])
+
+  // Påminnelser + kvitteringer: jevnlig, og STRAKS skjermen våkner/får fokus –
+  // nye påminnelser fra familien skal dukke opp av seg selv
+  useAutoOppdater(!lasterBruker && Boolean(brukerId), 30_000, () => {
+    lastData(brukerId as string)
+  })
+
+  // Vær og strøm (rolig oppdatering – og fersk når skjermen våkner)
+  useAutoOppdater(true, 30 * 60_000, () => {
     const zone = localStorage.getItem('zone') || 'NO1'
-    const last = () => {
-      hentVaer(zone).then(setVaer).catch(() => {})
-      const cache = lesPrisCache(zone)
-      if (cache) setPriser(cache.data.idag)
-      hentAltData(zone).then(d => { if (d.idag.length) setPriser(d.idag) }).catch(() => {})
-    }
-    last()
-    const t = setInterval(last, 30 * 60_000)
-    return () => clearInterval(t)
-  }, [])
+    hentVaer(zone).then(setVaer).catch(() => {})
+    const cache = lesPrisCache(zone)
+    if (cache) setPriser(cache.data.idag)
+    hentAltData(zone).then(d => { if (d.idag.length) setPriser(d.idag) }).catch(() => {})
+  })
 
   // Hovedkortet: eldste ubekreftede kvittering, ellers neste hendelse som ikke
   // er håndtert (også nylig forfalte – de skal vises selv om cron-en henger etter)

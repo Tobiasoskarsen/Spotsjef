@@ -9,6 +9,7 @@ import {
 } from '@/lib/naer'
 import { slettReminder } from '@/lib/reminders'
 import { Gjentakelse } from '@/lib/tid'
+import { useAutoOppdater } from '@/lib/useAutoOppdater'
 import { koblBrukerTilPush, pushStottes } from '@/lib/pushClient'
 import { HeartHandshake, Sparkles, BellRing } from 'lucide-react'
 
@@ -26,13 +27,15 @@ export default function MinePersoner({ tema }: { tema: Tema }) {
   const [apenPerson, setApenPerson] = useState<string | null>(null)
   const [varslerPaa, setVarslerPaa] = useState(false)
 
+  // Uten innlogging er det ingenting å hente – men vis kortet likevel
   useEffect(() => {
-    if (lasterBruker) return
-    if (!brukerId) { setLastet(true); return }
-    let aktiv = true
-    hentMineMottakere(brukerId).then(p => { if (aktiv) { setPersoner(p); setLastet(true) } })
-    return () => { aktiv = false }
-  }, [brukerId, lasterBruker])
+    if (!lasterBruker && !brukerId) setLastet(true)
+  }, [lasterBruker, brukerId])
+
+  // Hold lista fersk: «Venter på kobling» skal bli «Tilkoblet ✓» av seg selv
+  useAutoOppdater(!lasterBruker && Boolean(brukerId), 30_000, () => {
+    hentMineMottakere(brukerId as string).then(p => { setPersoner(p); setLastet(true) })
+  })
 
   const kortStil: React.CSSProperties = {
     background: tema.cardBg, borderRadius: '20px', padding: '22px', marginBottom: '14px',
@@ -176,18 +179,13 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
 
   const aktiv = relasjon.status === 'aktiv'
 
-  useEffect(() => {
-    if (!apen || !aktiv || !relasjon.mottakerId) return
-    let lever = true
-    ;(async () => {
-      const r = await hentReminderFor(relasjon.mottakerId as string)
-      if (!lever) return
-      setReminders(r)
-      const k = await hentSisteKvitteringer(r.map(x => x.id))
-      if (lever) setKvitteringer(k)
-    })()
-    return () => { lever = false }
-  }, [apen, aktiv, relasjon.mottakerId])
+  // Hold påminnelser + kvitteringer ferske mens raden er åpen, så
+  // «venter på bekreftelse» blir «Bekreftet ✓» uten at man laster siden på nytt
+  useAutoOppdater(apen && aktiv && Boolean(relasjon.mottakerId), 20_000, async () => {
+    const r = await hentReminderFor(relasjon.mottakerId as string)
+    setReminders(r)
+    setKvitteringer(await hentSisteKvitteringer(r.map(x => x.id)))
+  })
 
   // AI-tolkning: «medisin hver morgen kl 9» → tekst + tidspunkt ferdig utfylt
   async function tolkMedAi() {
