@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { NAER } from '@/lib/naerTema'
 import { useBruker } from '@/lib/bruker'
 import {
-  NaerReminder, Kvittering, hentMineHendelser, hentVentendeKvitteringer,
-  bekreftKvittering, bekreftReminderTidlig, hentMinKobling, settMottakerEnhet,
+  NaerReminder, Kvittering, Hilsen, hentMineHendelser, hentVentendeKvitteringer,
+  bekreftKvittering, bekreftReminderTidlig, hentMinKobling, hentHilsener, settMottakerEnhet,
 } from '@/lib/naer'
 import { VaerTime, hentVaer, tolkSymbol } from '@/lib/vaer'
 import { hentAltData, prisStatistikk, lesPrisCache } from '@/lib/priser'
@@ -31,6 +31,8 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
   const [vaer, setVaer] = useState<VaerTime[]>([])
   const [priser, setPriser] = useState<Pris[]>([])
   const [koblingNavn, setKoblingNavn] = useState('')
+  const [hilsener, setHilsener] = useState<Hilsen[]>([])
+  const [hilsenIndeks, setHilsenIndeks] = useState(0)
   const [naa, setNaa] = useState(new Date())
   const [nettopBekreftet, setNettopBekreftet] = useState(false)
   const [jobber, setJobber] = useState(false)
@@ -71,6 +73,18 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
   useAutoOppdater(!lasterBruker && Boolean(brukerId), 30_000, () => {
     lastData(brukerId as string)
   })
+
+  // Hilsener fra familien (sjekk hvert 2. min – og når skjermen våkner)
+  useAutoOppdater(!lasterBruker && Boolean(brukerId), 2 * 60_000, () => {
+    hentHilsener(brukerId as string).then(setHilsener)
+  })
+
+  // Bla rolig gjennom hilsenene, én om gangen (fotoramme-følelse)
+  useEffect(() => {
+    if (hilsener.length < 2) return
+    const t = setInterval(() => setHilsenIndeks(i => (i + 1) % hilsener.length), 20_000)
+    return () => clearInterval(t)
+  }, [hilsener.length])
 
   // Vær og strøm (rolig oppdatering – og fersk når skjermen våkner)
   useAutoOppdater(true, 30 * 60_000, () => {
@@ -209,6 +223,33 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
           ))}
         </div>
       )}
+
+      {/* Hilsen fra familien – skjermen som fotoramme når den ellers er rolig */}
+      {hilsener.length > 0 && (() => {
+        const h = hilsener[hilsenIndeks % hilsener.length]
+        const d = new Date(h.opprettet)
+        const erIdag = d.toDateString() === naa.toDateString()
+        return (
+          <div style={{ ...kortStil, padding: '20px', textAlign: 'center' }}>
+            {h.bildeUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- signert, kortlevd URL; next/image krever fast domeneoppsett
+              <img
+                src={h.bildeUrl}
+                alt="Bilde fra familien"
+                style={{ width: '100%', borderRadius: '16px', display: 'block', marginBottom: h.tekst ? '14px' : '10px' }}
+              />
+            )}
+            {h.tekst && (
+              <p style={{ fontSize: NAER.fontMedium, color: NAER.tekst, margin: '0 0 10px', lineHeight: 1.4, fontWeight: 500 }}>
+                {h.tekst}
+              </p>
+            )}
+            <p style={{ fontSize: NAER.fontLiten, color: NAER.subtekst, margin: 0 }}>
+              Fra familien din 💙 {erIdag ? 'i dag' : d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+        )
+      })()}
 
       {/* Strøm – kun når det faktisk er nyttig å vite */}
       {stromBillig && (

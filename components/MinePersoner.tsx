@@ -5,13 +5,13 @@ import { useBruker } from '@/lib/bruker'
 import {
   Relasjon, NaerReminder, Kvittering,
   opprettInvitasjon, hentMineMottakere, slettRelasjon,
-  hentReminderFor, leggTilReminderFor, hentSisteKvitteringer,
+  hentReminderFor, leggTilReminderFor, hentSisteKvitteringer, sendHilsen,
 } from '@/lib/naer'
 import { slettReminder } from '@/lib/reminders'
 import { Gjentakelse } from '@/lib/tid'
 import { useAutoOppdater } from '@/lib/useAutoOppdater'
 import { koblBrukerTilPush, pushStottes } from '@/lib/pushClient'
-import { HeartHandshake, Sparkles, BellRing } from 'lucide-react'
+import { HeartHandshake, Sparkles, BellRing, Image as ImageIcon } from 'lucide-react'
 
 // Nær – «Mine personer»: pårørende kobler til en mottaker via invitasjonskode,
 // legger inn påminnelser for hen, og ser kvitteringer («Levert ✓ Bekreftet ✓»).
@@ -176,6 +176,10 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
   const [jobber, setJobber] = useState(false)
   const [aiTekst, setAiTekst] = useState('')
   const [aiLaster, setAiLaster] = useState(false)
+  const [hilsenTekst, setHilsenTekst] = useState('')
+  const [hilsenBilde, setHilsenBilde] = useState<File | null>(null)
+  const [hilsenStatus, setHilsenStatus] = useState<'' | 'sender' | 'sendt'>('')
+  const [hilsenFeil, setHilsenFeil] = useState('')
 
   const aktiv = relasjon.status === 'aktiv'
 
@@ -244,6 +248,23 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
   async function fjern(id: string) {
     setReminders(l => l.filter(r => r.id !== id))
     await slettReminder(id)
+  }
+
+  // Send et bilde / en varm beskjed rett til skjermen hos personen
+  async function sendHilsenNaa() {
+    if (!relasjon.mottakerId) return
+    setHilsenStatus('sender')
+    setHilsenFeil('')
+    const { ok, feil: f } = await sendHilsen(brukerId, relasjon.mottakerId, hilsenTekst, hilsenBilde)
+    if (ok) {
+      setHilsenTekst('')
+      setHilsenBilde(null)
+      setHilsenStatus('sendt')
+      setTimeout(() => setHilsenStatus(''), 3500)
+    } else {
+      setHilsenFeil(f || 'Fikk ikke sendt. Prøv igjen.')
+      setHilsenStatus('')
+    }
   }
 
   function visTid(iso: string): string {
@@ -358,6 +379,42 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
               {jobber ? 'Lagrer …' : `Legg til for ${relasjon.mottakerNavn}`}
             </button>
             {feil && <p style={{ fontSize: '12px', color: '#d1605f', margin: 0 }}>{feil}</p>}
+          </div>
+
+          {/* Send en hilsen: bilder og varme ord rett til skjermen – det som
+              gjør skjermen til noe personen elsker, ikke bare trenger */}
+          <div style={{ background: tema.cardBg, borderRadius: '12px', padding: '12px', marginTop: '10px' }}>
+            <p style={{ fontSize: '12px', color: tema.subtekst, margin: '0 0 8px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+              <ImageIcon size={13} /> Send en hilsen til skjermen
+            </p>
+            <div style={{ display: 'grid', gap: '7px' }}>
+              <input
+                value={hilsenTekst}
+                onChange={e => setHilsenTekst(e.target.value)}
+                placeholder={`F.eks. «God morgen, ${relasjon.mottakerNavn}! Vi gleder oss til søndag ❤️»`}
+                style={{ ...inputStil, background: tema.inputBg }}
+              />
+              <div style={{ display: 'flex', gap: '7px', alignItems: 'center' }}>
+                <label style={{ flex: 1, padding: '11px 13px', borderRadius: '11px', border: `1px dashed ${tema.border}`, background: tema.inputBg, color: tema.subtekst, fontSize: '13px', cursor: 'pointer', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {hilsenBilde ? `📷 ${hilsenBilde.name}` : '📷 Velg et bilde (valgfritt)'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => setHilsenBilde(e.target.files?.[0] ?? null)}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={sendHilsenNaa}
+                  disabled={hilsenStatus === 'sender' || (!hilsenTekst.trim() && !hilsenBilde)}
+                  style={{ flexShrink: 0, padding: '11px 18px', borderRadius: '11px', border: 'none', background: tema.accentGradient, color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', opacity: hilsenStatus === 'sender' || (!hilsenTekst.trim() && !hilsenBilde) ? 0.6 : 1 }}
+                >
+                  {hilsenStatus === 'sender' ? 'Sender …' : hilsenStatus === 'sendt' ? 'Sendt ❤️' : 'Send'}
+                </button>
+              </div>
+              {hilsenFeil && <p style={{ fontSize: '12px', color: '#d1605f', margin: 0 }}>{hilsenFeil}</p>}
+            </div>
           </div>
         </div>
       )}

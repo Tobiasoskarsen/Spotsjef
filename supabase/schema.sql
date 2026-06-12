@@ -231,3 +231,75 @@ create policy "parorende kvittering les" on kvitteringer for select using (
   exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
           and r.mottaker_id = kvitteringer.user_id and r.status = 'aktiv')
 );
+
+
+-- ── Hilsener: bilder og varme ord fra familien til mottakerens skjerm ────────
+-- Skjermen skal være noe mottakeren ELSKER, ikke bare trenger: når ingenting
+-- skjer, viser den siste bilder/hilsener fra familien.
+create table if not exists hilsener (
+  id          uuid primary key default gen_random_uuid(),
+  mottaker_id uuid not null references auth.users(id) on delete cascade,
+  avsender_id uuid not null references auth.users(id) on delete cascade,
+  tekst       text not null default '',
+  bilde_path  text,                              -- sti i storage-bøtta 'hilsener' (kan være null: ren teksthilsen)
+  opprettet   timestamptz not null default now()
+);
+
+create index if not exists hilsener_mottaker on hilsener (mottaker_id, opprettet desc);
+
+alter table hilsener enable row level security;
+
+-- Mottakeren ser sine hilsener
+drop policy if exists "mottaker hilsen les" on hilsener;
+create policy "mottaker hilsen les" on hilsener for select using (auth.uid() = mottaker_id);
+
+-- Pårørende med aktivt samtykke kan sende og se (grunnlag for felles familielogg)
+drop policy if exists "parorende hilsen les" on hilsener;
+create policy "parorende hilsen les" on hilsener for select using (
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = hilsener.mottaker_id and r.status = 'aktiv')
+);
+
+drop policy if exists "parorende hilsen opprett" on hilsener;
+create policy "parorende hilsen opprett" on hilsener for insert with check (
+  avsender_id = auth.uid() and
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = hilsener.mottaker_id and r.status = 'aktiv')
+);
+
+-- Avsender (angre) og mottaker kan slette
+drop policy if exists "hilsen slett" on hilsener;
+create policy "hilsen slett" on hilsener for delete
+  using (auth.uid() = avsender_id or auth.uid() = mottaker_id);
+
+-- Privat storage-bøtte for bildene (signerte URL-er, aldri offentlig –
+-- dette er familiebilder av sårbare brukere)
+insert into storage.buckets (id, name, public)
+  values ('hilsener', 'hilsener', false)
+  on conflict (id) do nothing;
+
+-- Sti-konvensjon: hilsener/<mottaker_id>/<uuid>.jpg
+drop policy if exists "hilsen bilde opp" on storage.objects;
+create policy "hilsen bilde opp" on storage.objects for insert to authenticated with check (
+  bucket_id = 'hilsener' and
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id::text = (storage.foldername(name))[1] and r.status = 'aktiv')
+);
+
+drop policy if exists "hilsen bilde les" on storage.objects;
+create policy "hilsen bilde les" on storage.objects for select to authenticated using (
+  bucket_id = 'hilsener' and (
+    (storage.foldername(name))[1] = auth.uid()::text or
+    exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+            and r.mottaker_id::text = (storage.foldername(name))[1] and r.status = 'aktiv')
+  )
+);
+
+drop policy if exists "hilsen bilde slett" on storage.objects;
+create policy "hilsen bilde slett" on storage.objects for delete to authenticated using (
+  bucket_id = 'hilsener' and (
+    (storage.foldername(name))[1] = auth.uid()::text or
+    exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+            and r.mottaker_id::text = (storage.foldername(name))[1] and r.status = 'aktiv')
+  )
+);

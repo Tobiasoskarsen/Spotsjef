@@ -251,6 +251,92 @@ export async function hentMinKobling(brukerId: string): Promise<Relasjon | null>
   return data ? tilRelasjon(data as RelasjonRad) : null
 }
 
+// ── Hilsener: bilder og varme ord til mottakerens skjerm ────────────────────
+
+export type Hilsen = {
+  id: string
+  tekst: string
+  bildeUrl: string | null // signert URL (privat bøtte), null for ren teksthilsen
+  opprettet: string
+}
+
+// Krymper et bilde i nettleseren før opplasting (maks 1280 px, JPEG).
+// Mobilbilder er gjerne 5–10 MB – skjermen trenger en brøkdel.
+async function komprimerBilde(fil: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(fil)
+  const maks = 1280
+  const skala = Math.min(1, maks / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * skala)
+  canvas.height = Math.round(bitmap.height * skala)
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.82))
+  return blob ?? fil
+}
+
+// Sender en hilsen (tekst og/eller bilde) til mottakerens skjerm.
+export async function sendHilsen(
+  avsenderId: string,
+  mottakerId: string,
+  tekst: string,
+  bilde: File | null,
+): Promise<{ ok: boolean; feil?: string }> {
+  const sb = getSupabase()
+  if (!sb) return { ok: false, feil: 'Ikke koblet til database.' }
+  if (!tekst.trim() && !bilde) return { ok: false, feil: 'Skriv noe eller velg et bilde.' }
+
+  let bildePath: string | null = null
+  if (bilde) {
+    bildePath = `${mottakerId}/${crypto.randomUUID()}.jpg`
+    const komprimert = await komprimerBilde(bilde)
+    const { error } = await sb.storage
+      .from('hilsener')
+      .upload(bildePath, komprimert, { contentType: 'image/jpeg' })
+    if (error) return { ok: false, feil: `Fikk ikke lastet opp bildet: ${error.message}` }
+  }
+
+  const { error } = await sb.from('hilsener').insert({
+    mottaker_id: mottakerId, avsender_id: avsenderId, tekst: tekst.trim(), bilde_path: bildePath,
+  })
+  if (error) {
+    // Ikke la et foreldreløst bilde ligge igjen hvis raden feilet
+    if (bildePath) await sb.storage.from('hilsener').remove([bildePath])
+    return { ok: false, feil: error.message }
+  }
+  return { ok: true }
+}
+
+// Henter de siste hilsenene med signerte bilde-URL-er (gyldige i 6 timer –
+// skjermen henter ferske lenker lenge før de utløper).
+export async function hentHilsener(mottakerId: string, antall = 10): Promise<Hilsen[]> {
+  const sb = getSupabase()
+  if (!sb) return []
+  const { data } = await sb
+    .from('hilsener')
+    .select('id, tekst, bilde_path, opprettet')
+    .eq('mottaker_id', mottakerId)
+    .order('opprettet', { ascending: false })
+    .limit(antall)
+  const rader = (data ?? []) as { id: string; tekst: string; bilde_path: string | null; opprettet: string }[]
+  if (rader.length === 0) return []
+
+  const stier = rader.filter(r => r.bilde_path).map(r => r.bilde_path as string)
+  const urlKart: Record<string, string> = {}
+  if (stier.length > 0) {
+    const { data: signerte } = await sb.storage.from('hilsener').createSignedUrls(stier, 6 * 60 * 60)
+    for (const s of signerte ?? []) {
+      if (s.signedUrl && s.path) urlKart[s.path] = s.signedUrl
+    }
+  }
+  return rader.map(r => ({
+    id: r.id,
+    tekst: r.tekst,
+    bildeUrl: r.bilde_path ? (urlKart[r.bilde_path] ?? null) : null,
+    opprettet: r.opprettet,
+  }))
+}
+
 // Lokal merking av at denne enheten er en mottaker-skjerm
 const MODUS_NOKKEL = 'naer:modus'
 export function erMottakerEnhet(): boolean {
