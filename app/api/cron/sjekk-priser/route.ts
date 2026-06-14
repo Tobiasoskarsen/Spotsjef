@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet, opprettKvittering, flyttReminder, hentEskaleringer, merkEskalert, hentAktiveRelasjoner, harRapport, lagreRapport, hentUkesData, UkesData } from '@/lib/push'
 import { nesteForekomst } from '@/lib/tid'
+import { loggAiBruk } from '@/lib/aiBruk'
 import { formaterPriser, formatDato } from '@/lib/priser'
 import { ApiPris } from '@/lib/types'
 
@@ -70,6 +71,9 @@ async function lagRapportTekst(navn: string, d: UkesData): Promise<string> {
     })
     if (!res.ok) return mal
     const data = await res.json()
+    if (data.usage) {
+      await loggAiBruk('claude-opus-4-8', data.usage.input_tokens ?? 0, data.usage.output_tokens ?? 0, 'ukesrapport')
+    }
     const tekst = data.content?.find((b: { type?: string }) => b.type === 'text')?.text?.trim()
     return tekst || mal
   } catch {

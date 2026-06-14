@@ -439,3 +439,21 @@ create policy "parorende rapport les" on rapporter for select using (
           and r.parorende_id = auth.uid())
 );
 
+
+-- ── AI-bruk: intern kostnadslogg (kun for Tobias, ikke synlig i appen) ───────
+-- Hvert AI-kall logger faktisk token-bruk fra Anthropics `usage`-felt. Skrives
+-- av serveren (service role); RLS uten policies låser tabellen for nettleseren.
+-- Les den med scripts/ai-kostnad.mjs for å se reelle kroner.
+create table if not exists ai_bruk (
+  id         uuid primary key default gen_random_uuid(),
+  modell     text not null,                 -- f.eks. 'claude-haiku-4-5'
+  inn_tokens integer not null default 0,    -- input_tokens fra API-svaret
+  ut_tokens  integer not null default 0,    -- output_tokens fra API-svaret
+  formaal    text not null default '',      -- 'tolk-paminnelse' | 'ukesrapport'
+  opprettet  timestamptz not null default now()
+);
+
+create index if not exists ai_bruk_tid on ai_bruk (opprettet desc);
+
+alter table ai_bruk enable row level security;
+

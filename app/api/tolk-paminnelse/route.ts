@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { loggAiBruk } from '@/lib/aiBruk'
 
 // Tolker en påminnelse skrevet i vanlig språk («ring mamma fredag kl 18») til
 // struktur { tekst, lokalTid }. Bruker Haiku (rask + rimelig – enkel uttrekking).
@@ -61,6 +62,9 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await res.json()
+    if (data.usage) {
+      await loggAiBruk('claude-haiku-4-5', data.usage.input_tokens ?? 0, data.usage.output_tokens ?? 0, 'tolk-paminnelse')
+    }
     const verktoy = data.content?.find((b: { type?: string }) => b.type === 'tool_use')
     const ut = verktoy?.input as { tekst?: string; lokalTid?: string } | undefined
     if (!ut?.tekst || !ut?.lokalTid || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(ut.lokalTid)) {
