@@ -262,6 +262,25 @@ export async function hentAktiveRelasjoner(): Promise<AktivRelasjon[]> {
   return (data ?? []) as AktivRelasjon[]
 }
 
+// Nærvær («sist innom») per mottaker – grunnlag for mild stillhets-beskjed.
+export type Naervaer = { sistAktiv: string; varslet: boolean }
+export async function hentNaervaerFor(mottakerIds: string[]): Promise<Record<string, Naervaer>> {
+  const r = getDb()
+  if (!r || mottakerIds.length === 0) return {}
+  const { data } = await r.from('naervaer').select('user_id, sist_aktiv, varslet').in('user_id', mottakerIds)
+  const kart: Record<string, Naervaer> = {}
+  for (const row of (data ?? []) as { user_id: string; sist_aktiv: string; varslet: boolean }[]) {
+    kart[row.user_id] = { sistAktiv: row.sist_aktiv, varslet: Boolean(row.varslet) }
+  }
+  return kart
+}
+
+export async function merkNaervaerVarslet(userId: string): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from('naervaer').update({ varslet: true }).eq('user_id', userId)
+}
+
 export async function harRapport(relasjonId: string, uke: string): Promise<boolean> {
   const r = getDb()
   if (!r) return true // uten db: ikke prøv å lage rapport

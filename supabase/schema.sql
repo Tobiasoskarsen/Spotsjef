@@ -457,3 +457,36 @@ create index if not exists ai_bruk_tid on ai_bruk (opprettet desc);
 
 alter table ai_bruk enable row level security;
 
+
+-- ── Nærvær: «sist innom» – passivt, verdig tillitssignal ────────────────────
+-- IKKE «er enheten på» (eldre lar ikke nettbrett stå på), men «har hun vært i
+-- kontakt med appen». Mottakerskjermen oppdaterer sist_aktiv når den er i bruk;
+-- pårørende ser «sist innom», og cron sender en MYK beskjed kun hvis det går
+-- virkelig lenge (varslet debouncer til én gang per stillhet, re-armes når hun
+-- er innom igjen). Den harde ryggraden er fortsatt kvitteringene.
+create table if not exists naervaer (
+  user_id    uuid primary key references auth.users(id) on delete cascade, -- mottakeren
+  sist_aktiv timestamptz not null default now(),
+  varslet    boolean not null default false   -- har vi alt varslet pårørende om stillhet?
+);
+
+alter table naervaer enable row level security;
+
+-- Mottakeren oppdaterer/leser sin egen rad
+drop policy if exists "naervaer egen les" on naervaer;
+create policy "naervaer egen les" on naervaer for select using (auth.uid() = user_id);
+
+drop policy if exists "naervaer egen opprett" on naervaer;
+create policy "naervaer egen opprett" on naervaer for insert with check (auth.uid() = user_id);
+
+drop policy if exists "naervaer egen oppdater" on naervaer;
+create policy "naervaer egen oppdater" on naervaer for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Pårørende med aktivt samtykke ser «sist innom»
+drop policy if exists "naervaer parorende les" on naervaer;
+create policy "naervaer parorende les" on naervaer for select using (
+  exists (select 1 from relasjoner r where r.parorende_id = auth.uid()
+          and r.mottaker_id = naervaer.user_id and r.status = 'aktiv')
+);
+

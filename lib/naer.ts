@@ -364,6 +364,33 @@ export async function hentSistePuls(brukerId: string): Promise<string | null> {
   return (data as { opprettet: string } | null)?.opprettet ?? null
 }
 
+// ── Nærvær: «sist innom» + hjerte tilbake ───────────────────────────────────
+
+// Mottakerskjermen melder at den er i bruk. Setter varslet=false igjen, så en
+// eventuell stillhets-beskjed re-armes når hun er innom.
+export async function registrerNaervaer(brukerId: string): Promise<void> {
+  const sb = getSupabase()
+  if (!sb) return
+  await sb.from('naervaer').upsert(
+    { user_id: brukerId, sist_aktiv: new Date().toISOString(), varslet: false },
+    { onConflict: 'user_id' },
+  )
+}
+
+// Pårørende leser «sist innom» (ISO-tid, eller null hvis aldri vært innom).
+export async function hentNaervaer(mottakerId: string): Promise<string | null> {
+  const sb = getSupabase()
+  if (!sb) return null
+  const { data } = await sb.from('naervaer').select('sist_aktiv').eq('user_id', mottakerId).maybeSingle()
+  return (data as { sist_aktiv: string } | null)?.sist_aktiv ?? null
+}
+
+// Et raskt hjerte tilbake til mottakerens skjerm (gjenbruker hilsener).
+export async function sendHjerte(parorendeId: string, mottakerId: string): Promise<boolean> {
+  const { ok } = await sendHilsen(parorendeId, mottakerId, 'Glad i deg ❤️', null)
+  return ok
+}
+
 // ── Familie-deling: inviter søsken til samme mottaker ───────────────────────
 
 export async function lagFamiliekode(

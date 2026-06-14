@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet, opprettKvittering, flyttReminder, hentEskaleringer, merkEskalert, hentAktiveRelasjoner, harRapport, lagreRapport, hentUkesData, UkesData } from '@/lib/push'
+import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet, opprettKvittering, flyttReminder, hentEskaleringer, merkEskalert, hentAktiveRelasjoner, harRapport, lagreRapport, hentUkesData, UkesData, hentNaervaerFor, merkNaervaerVarslet } from '@/lib/push'
 import { nesteForekomst } from '@/lib/tid'
 import { loggAiBruk } from '@/lib/aiBruk'
 import { formaterPriser, formatDato } from '@/lib/priser'
@@ -213,6 +213,29 @@ export async function GET(req: NextRequest) {
     await merkEskalert(e.kvitteringId)
   }
 
+  // --- Nær: mild stillhets-beskjed hvis mottakeren ikke har vært innom på lenge ---
+  // IKKE en alarm. Sendes én gang per stillhets-episode (re-armes når hun er
+  // innom igjen). Kvitteringene er fortsatt den harde ryggraden – dette er kun
+  // det rolige «kanskje ring henne»-vinket når det blir virkelig stille.
+  const STILLE_TIMER = 48
+  let sendtStillhet = 0
+  const aktiveForStillhet = await hentAktiveRelasjoner()
+  if (aktiveForStillhet.length > 0) {
+    const naervaer = await hentNaervaerFor([...new Set(aktiveForStillhet.map(r => r.mottaker_id))])
+    const naaMs = Date.now()
+    for (const rel of aktiveForStillhet) {
+      const n = naervaer[rel.mottaker_id]
+      if (!n || n.varslet) continue // aldri vært innom, eller alt varslet
+      if (naaMs - new Date(n.sistAktiv).getTime() < STILLE_TIMER * 3_600_000) continue
+      for (const a of subsPerBruker[rel.parorende_id] ?? []) {
+        if (await sendVarsel(a, `Nær — det er stille hos ${rel.mottaker_navn}`, `Du har ikke hørt fra ${rel.mottaker_navn} i appen på et par dager. Kanskje verdt en telefon?`)) {
+          sendtStillhet++
+        }
+      }
+      await merkNaervaerVarslet(rel.mottaker_id) // debounce uansett – re-armes når hun er innom
+    }
+  }
+
   // --- Nær: ukentlig trygghetsrapport (søndag kveld, én per relasjon per uke) ---
   let sendtRapport = 0
   const osloTidNaa = osloNaa()
@@ -231,5 +254,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder, sendtEskalering, sendtRapport })
+  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder, sendtEskalering, sendtStillhet, sendtRapport })
 }

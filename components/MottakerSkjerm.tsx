@@ -5,7 +5,7 @@ import { useBruker } from '@/lib/bruker'
 import {
   NaerReminder, Kvittering, Hilsen, hentMineHendelser, hentVentendeKvitteringer,
   bekreftKvittering, bekreftReminderTidlig, hentMinKobling, hentHilsener, settMottakerEnhet,
-  sendPuls, hentSistePuls, hentMinZone,
+  sendPuls, hentSistePuls, hentMinZone, registrerNaervaer,
 } from '@/lib/naer'
 import { VaerTime, hentVaer, tolkSymbol } from '@/lib/vaer'
 import { hentAltData, prisStatistikk, lesPrisCache } from '@/lib/priser'
@@ -87,10 +87,12 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
     lastData(brukerId as string)
   })
 
-  // Hilsener fra familien + puls-status (sjekk hvert 2. min – og når skjermen våkner)
+  // Hilsener fra familien + puls-status (sjekk hvert 2. min – og når skjermen våkner).
+  // Melder samtidig «nærvær» – at skjermen er i bruk – så pårørende ser «sist innom».
   useAutoOppdater(!lasterBruker && Boolean(brukerId), 2 * 60_000, () => {
     hentHilsener(brukerId as string).then(setHilsener)
     hentSistePuls(brukerId as string).then(setSistePuls)
+    registrerNaervaer(brukerId as string)
   })
 
   // Vær og strøm (rolig oppdatering – og fersk når skjermen våkner eller stedet endres)

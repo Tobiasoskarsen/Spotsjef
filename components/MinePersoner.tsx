@@ -7,7 +7,7 @@ import {
   opprettInvitasjon, hentMineMottakere, slettRelasjon,
   hentReminderFor, leggTilReminderFor, hentSisteKvitteringer, sendHilsen,
   hentSistePuls, lagFamiliekode, aksepterFamiliekode, settMottakerZone,
-  hentOmsorgslogg, hentSisteRapport,
+  hentOmsorgslogg, hentSisteRapport, hentNaervaer, sendHjerte,
 } from '@/lib/naer'
 import { slettReminder } from '@/lib/reminders'
 import { Gjentakelse } from '@/lib/tid'
@@ -225,6 +225,8 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
   const [hilsenStatus, setHilsenStatus] = useState<'' | 'sender' | 'sendt'>('')
   const [hilsenFeil, setHilsenFeil] = useState('')
   const [sistePuls, setSistePuls] = useState<string | null>(null)
+  const [sistInnom, setSistInnom] = useState<string | null>(null)
+  const [hjerteSendt, setHjerteSendt] = useState(false)
   const [logg, setLogg] = useState<LoggInnslag[]>([])
   const [rapport, setRapport] = useState<Rapport | null>(null)
   const [famKode, setFamKode] = useState('')
@@ -249,12 +251,31 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
     hentSisteRapport(relasjon.id).then(setRapport)
   })
 
-  // Puls-prikken («alt ok i dag») skal synes uten å åpne raden
+  // Puls-prikken («alt ok i dag») + «sist innom» skal synes uten å åpne raden
   useAutoOppdater(aktiv && Boolean(relasjon.mottakerId), 60_000, () => {
     hentSistePuls(relasjon.mottakerId as string).then(setSistePuls)
+    hentNaervaer(relasjon.mottakerId as string).then(setSistInnom)
   })
 
   const pulsIdag = Boolean(sistePuls && new Date(sistePuls).toDateString() === new Date().toDateString())
+
+  async function sendHjerteNaa() {
+    if (!relasjon.mottakerId || hjerteSendt) return
+    if (await sendHjerte(brukerId, relasjon.mottakerId)) {
+      setHjerteSendt(true)
+      setTimeout(() => setHjerteSendt(false), 4000)
+    }
+  }
+
+  // «Sist innom» i klartekst – rolig, aldri alarmerende
+  function formaterInnom(iso: string): string {
+    const d = new Date(iso)
+    const naa = new Date()
+    const kl = d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+    if (d.toDateString() === naa.toDateString()) return `i dag kl. ${kl}`
+    if (new Date(naa.getTime() - 86_400_000).toDateString() === d.toDateString()) return `i går kl. ${kl}`
+    return `${d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })} kl. ${kl}`
+  }
 
   async function inviterFamilie() {
     if (!relasjon.mottakerId || famJobber) return
@@ -408,6 +429,27 @@ function PersonRad({ relasjon, apen, onToggle, onFjern, brukerId, tema, inputSti
       {/* Aktiv: påminnelser med kvitteringsstatus + nytt-skjema */}
       {apen && aktiv && (
         <div style={{ marginTop: '12px' }}>
+          {/* Nærvær: rolig «sist innom» + hjerte tilbake når hun sa god morgen */}
+          <div style={{ background: pulsIdag ? '#e7f2ec' : tema.cardBg, borderRadius: '12px', padding: '12px 14px', marginBottom: '10px' }}>
+            <p style={{ fontSize: '13.5px', color: tema.tekst, margin: 0, lineHeight: 1.5 }}>
+              {pulsIdag
+                ? `${relasjon.mottakerNavn} sa god morgen i dag ☀️`
+                : sistInnom
+                  ? `Sist innom: ${formaterInnom(sistInnom)}`
+                  : `${relasjon.mottakerNavn} har ikke vært innom ennå`}
+            </p>
+            {pulsIdag && (
+              <button
+                type="button"
+                onClick={sendHjerteNaa}
+                disabled={hjerteSendt}
+                style={{ marginTop: '8px', padding: '8px 14px', borderRadius: '10px', border: 'none', background: hjerteSendt ? tema.inputBg : tema.accentGradient, color: hjerteSendt ? '#5b9279' : '#fff', cursor: hjerteSendt ? 'default' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit' }}
+              >
+                {hjerteSendt ? 'Hjertet er på vei ❤️' : 'Send et hjerte tilbake ❤️'}
+              </button>
+            )}
+          </div>
+
           {reminders.length > 0 ? (
             <div style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
               {reminders.map(r => {
