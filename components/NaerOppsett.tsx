@@ -83,8 +83,8 @@ export default function NaerOppsett({ tema, onAktiver }: { tema: Tema; onAktiver
             Før vi kobler til – dette betyr det:
           </p>
           <ul style={{ fontSize: '13.5px', color: tema.subtekst, margin: '0 0 14px', paddingLeft: '18px', lineHeight: 1.7 }}>
-            <li>Den som ga deg koden kan legge inn påminnelser som vises på denne skjermen.</li>
-            <li>Når du trykker «Ferdig ✓» på en påminnelse, kan de se at du har bekreftet den – og når.</li>
+            <li>Den som ga deg koden – og familie de inviterer inn – kan legge inn påminnelser og sende bilder som vises på denne skjermen.</li>
+            <li>Når du trykker «Ferdig ✓» eller «alt er bra», kan familien se det – og når.</li>
             <li>Ingenting annet deles: ikke posisjon, ikke hva du ellers gjør på enheten.</li>
             <li>Du kan når som helst koble fra igjen.</li>
           </ul>

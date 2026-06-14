@@ -5,6 +5,7 @@ import { useBruker } from '@/lib/bruker'
 import {
   NaerReminder, Kvittering, Hilsen, hentMineHendelser, hentVentendeKvitteringer,
   bekreftKvittering, bekreftReminderTidlig, hentMinKobling, hentHilsener, settMottakerEnhet,
+  sendPuls, hentSistePuls, hentMinZone,
 } from '@/lib/naer'
 import { VaerTime, hentVaer, tolkSymbol } from '@/lib/vaer'
 import { hentAltData, prisStatistikk, lesPrisCache } from '@/lib/priser'
@@ -41,6 +42,9 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
   const [naa, setNaa] = useState(new Date())
   const [nettopBekreftet, setNettopBekreftet] = useState(false)
   const [jobber, setJobber] = useState(false)
+  const [sistePuls, setSistePuls] = useState<string | null>(null)
+  const [pulsJobber, setPulsJobber] = useState(false)
+  const [zone, setZone] = useState<string>('NO1')
 
   // Klokka og «i dag» skal alltid stemme – oppdater hvert minutt
   useEffect(() => {
@@ -67,10 +71,14 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
     } catch {}
   }, [brukerId, lasterBruker])
 
-  // Hvem har satt opp skjermen (én gang er nok)
+  // Hvem har satt opp skjermen + lagret sted (fjernstyrt av pårørende)
   useEffect(() => {
+    setZone(localStorage.getItem('zone') || 'NO1')
     if (!brukerId) return
     hentMinKobling(brukerId).then(r => { if (r) setKoblingNavn(r.mottakerNavn) })
+    hentMinZone(brukerId).then(z => {
+      if (z) { setZone(z); localStorage.setItem('zone', z) }
+    })
   }, [brukerId])
 
   // Påminnelser + kvitteringer: jevnlig, og STRAKS skjermen våkner/får fokus –
@@ -79,19 +87,21 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
     lastData(brukerId as string)
   })
 
-  // Hilsener fra familien (sjekk hvert 2. min – og når skjermen våkner)
+  // Hilsener fra familien + puls-status (sjekk hvert 2. min – og når skjermen våkner)
   useAutoOppdater(!lasterBruker && Boolean(brukerId), 2 * 60_000, () => {
     hentHilsener(brukerId as string).then(setHilsener)
+    hentSistePuls(brukerId as string).then(setSistePuls)
   })
 
-  // Vær og strøm (rolig oppdatering – og fersk når skjermen våkner)
-  useAutoOppdater(true, 30 * 60_000, () => {
-    const zone = localStorage.getItem('zone') || 'NO1'
+  // Vær og strøm (rolig oppdatering – og fersk når skjermen våkner eller stedet endres)
+  const lastVaerOgStrom = useCallback(() => {
     hentVaer(zone).then(setVaer).catch(() => {})
     const cache = lesPrisCache(zone)
     if (cache) setPriser(cache.data.idag)
     hentAltData(zone).then(d => { if (d.idag.length) setPriser(d.idag) }).catch(() => {})
-  })
+  }, [zone])
+  useAutoOppdater(true, 30 * 60_000, lastVaerOgStrom)
+  useEffect(() => { lastVaerOgStrom() }, [lastVaerOgStrom])
 
   // Bildene blant hilsenene utgjør fotorammen; nyeste tekst-hilsen vises i fallback
   const bilder = hilsener.filter(h => h.bildeUrl)
@@ -146,6 +156,16 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
 
   function visKl(iso: string): string {
     return new Date(iso).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  // Frivillig «alt ok»-puls: én gang om dagen, aldri mas
+  const pulsIdag = Boolean(sistePuls && new Date(sistePuls).toDateString() === naa.toDateString())
+
+  async function trykkPuls() {
+    if (!brukerId || pulsJobber || pulsIdag) return
+    setPulsJobber(true)
+    if (await sendPuls(brukerId)) setSistePuls(new Date().toISOString())
+    setPulsJobber(false)
   }
 
   const dagTekst = naa.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -279,6 +299,35 @@ export default function MottakerSkjerm({ onAvslutt }: { onAvslutt: () => void })
               Ingen flere påminnelser akkurat nå.
             </p>
           </div>
+        )}
+
+        {/* Frivillig «alt ok»-knapp: si god morgen til familien med ett trykk */}
+        {brukerId && (
+          pulsIdag ? (
+            <div style={harBilder
+              ? { ...frostet, padding: '12px 18px', textAlign: 'center' }
+              : { background: NAER.gronnLys, borderRadius: '20px', padding: '14px 20px', textAlign: 'center' }}>
+              <p style={{ fontSize: NAER.fontNormal, fontWeight: 600, color: harBilder ? '#ffffff' : NAER.gronn, margin: 0 }}>
+                Familien vet at alt er bra hos deg ☀️ ({visKl(sistePuls as string)})
+              </p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={trykkPuls}
+              disabled={pulsJobber}
+              style={{
+                width: '100%', minHeight: NAER.knappHoyde, borderRadius: '20px',
+                border: harBilder ? '1px solid rgba(255,255,255,0.35)' : `1px solid ${NAER.border}`,
+                background: harBilder ? 'rgba(255,255,255,0.92)' : NAER.kortBg,
+                color: NAER.tekst, fontSize: NAER.fontNormal, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit', opacity: pulsJobber ? 0.7 : 1,
+                boxShadow: harBilder ? '0 6px 24px rgba(0,0,0,0.3)' : NAER.skygge,
+              }}
+            >
+              ☀️ Trykk her for å si at alt er bra
+            </button>
+          )
         )}
 
         {/* Senere i dag – kun tekst, ingen knapper */}

@@ -340,6 +340,150 @@ export async function hentHilsener(mottakerId: string, antall = 10): Promise<Hil
   }))
 }
 
+// ── «Alt ok»-puls: frivillig god morgen-knapp ────────────────────────────────
+
+// Mottakeren sier «alt er bra» med ett trykk. Returnerer false ved feil.
+export async function sendPuls(brukerId: string): Promise<boolean> {
+  const sb = getSupabase()
+  if (!sb) return false
+  const { error } = await sb.from('pulser').insert({ user_id: brukerId })
+  return !error
+}
+
+// Siste puls for en bruker (mottakers egen knapp-status / pårørendes prikk).
+export async function hentSistePuls(brukerId: string): Promise<string | null> {
+  const sb = getSupabase()
+  if (!sb) return null
+  const { data } = await sb
+    .from('pulser')
+    .select('opprettet')
+    .eq('user_id', brukerId)
+    .order('opprettet', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return (data as { opprettet: string } | null)?.opprettet ?? null
+}
+
+// ── Familie-deling: inviter søsken til samme mottaker ───────────────────────
+
+export async function lagFamiliekode(
+  parorendeId: string,
+  mottakerId: string,
+  mottakerNavn: string,
+): Promise<{ kode: string | null; feil?: string }> {
+  const sb = getSupabase()
+  if (!sb) return { kode: null, feil: 'Ikke koblet til database.' }
+  for (let forsok = 0; forsok < 3; forsok++) {
+    const kode = lagKode()
+    const { error } = await sb.from('familieinvitasjoner').insert({
+      kode, mottaker_id: mottakerId, mottaker_navn: mottakerNavn, opprettet_av: parorendeId,
+    })
+    if (!error) return { kode }
+    if (!error.message.includes('duplicate')) return { kode: null, feil: error.message }
+  }
+  return { kode: null, feil: 'Kunne ikke lage kode. Prøv igjen.' }
+}
+
+// Et søsken taster familiekoden → egen aktiv relasjon til samme mottaker.
+export async function aksepterFamiliekode(kode: string): Promise<{ navn: string | null; feil?: string }> {
+  const sb = getSupabase()
+  if (!sb) return { navn: null, feil: 'Ikke koblet til database.' }
+  const { data, error } = await sb.rpc('aksepter_familiekode', { kode: kode.trim().toUpperCase() })
+  if (error) return { navn: null, feil: error.message }
+  const rad = (data as { mottaker_navn: string }[] | null)?.[0]
+  return { navn: rad?.mottaker_navn ?? '' }
+}
+
+// ── Fjernkonfigurasjon: sted (vær/strøm-sone) for mottakerens skjerm ─────────
+
+export const NAER_SONER = [
+  { kode: 'NO1', navn: 'Østlandet (Oslo)' },
+  { kode: 'NO2', navn: 'Sørlandet (Kristiansand)' },
+  { kode: 'NO3', navn: 'Midt-Norge (Trondheim)' },
+  { kode: 'NO4', navn: 'Nord-Norge (Tromsø)' },
+  { kode: 'NO5', navn: 'Vestlandet (Bergen)' },
+] as const
+
+export async function settMottakerZone(mottakerId: string, zone: string): Promise<boolean> {
+  const sb = getSupabase()
+  if (!sb) return false
+  const { error } = await sb.rpc('sett_mottaker_zone', { mottaker: mottakerId, ny_zone: zone })
+  return !error
+}
+
+// Mottakerens lagrede sone (les egen profil); pårørende kan også lese via RLS? Nei –
+// profiles er privat, så pårørende husker valget lokalt. Mottakerskjermen leser denne.
+export async function hentMinZone(brukerId: string): Promise<string | null> {
+  const sb = getSupabase()
+  if (!sb) return null
+  const { data } = await sb.from('profiles').select('zone').eq('id', brukerId).maybeSingle()
+  return (data as { zone: string | null } | null)?.zone ?? null
+}
+
+// ── Felles omsorgslogg: alt familien gjør rundt personen, ett sted ───────────
+
+export type LoggInnslag = {
+  id: string
+  tid: string // ISO
+  tekst: string
+  type: 'bekreftet' | 'levert' | 'hilsen' | 'puls'
+}
+
+// Bygges av data familien alt kan se (RLS): kvitteringer + hilsener + pulser.
+export async function hentOmsorgslogg(mottakerId: string, antall = 12): Promise<LoggInnslag[]> {
+  const sb = getSupabase()
+  if (!sb) return []
+  const fra = new Date(Date.now() - 14 * 86_400_000).toISOString()
+
+  const [kvitteringer, hilsener, pulser] = await Promise.all([
+    sb.from('kvitteringer')
+      .select('id, tekst, planlagt, levert, bekreftet')
+      .eq('user_id', mottakerId).gte('opprettet', fra)
+      .order('opprettet', { ascending: false }).limit(antall),
+    sb.from('hilsener')
+      .select('id, tekst, bilde_path, opprettet')
+      .eq('mottaker_id', mottakerId).gte('opprettet', fra)
+      .order('opprettet', { ascending: false }).limit(antall),
+    sb.from('pulser')
+      .select('id, opprettet')
+      .eq('user_id', mottakerId).gte('opprettet', fra)
+      .order('opprettet', { ascending: false }).limit(antall),
+  ])
+
+  const innslag: LoggInnslag[] = []
+  for (const k of (kvitteringer.data ?? []) as { id: string; tekst: string; planlagt: string; levert: string | null; bekreftet: string | null }[]) {
+    if (k.bekreftet) innslag.push({ id: `k${k.id}`, tid: k.bekreftet, tekst: `Bekreftet «${k.tekst}» ✓`, type: 'bekreftet' })
+    else innslag.push({ id: `k${k.id}`, tid: k.levert ?? k.planlagt, tekst: `«${k.tekst}» – ikke bekreftet ennå`, type: 'levert' })
+  }
+  for (const h of (hilsener.data ?? []) as { id: string; tekst: string; bilde_path: string | null; opprettet: string }[]) {
+    innslag.push({
+      id: `h${h.id}`, tid: h.opprettet, type: 'hilsen',
+      tekst: h.bilde_path ? `Familien sendte et bilde${h.tekst ? `: «${h.tekst}»` : ''}` : `Hilsen: «${h.tekst}»`,
+    })
+  }
+  for (const p of (pulser.data ?? []) as { id: string; opprettet: string }[]) {
+    innslag.push({ id: `p${p.id}`, tid: p.opprettet, tekst: 'Sa at alt er bra ☀️', type: 'puls' })
+  }
+  return innslag.sort((a, b) => b.tid.localeCompare(a.tid)).slice(0, antall)
+}
+
+// ── Ukentlige trygghetsrapporter ─────────────────────────────────────────────
+
+export type Rapport = { uke: string; tekst: string; opprettet: string }
+
+export async function hentSisteRapport(relasjonId: string): Promise<Rapport | null> {
+  const sb = getSupabase()
+  if (!sb) return null
+  const { data } = await sb
+    .from('rapporter')
+    .select('uke, tekst, opprettet')
+    .eq('relasjon_id', relasjonId)
+    .order('opprettet', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return (data as Rapport | null) ?? null
+}
+
 // Lokal merking av at denne enheten er en mottaker-skjerm
 const MODUS_NOKKEL = 'naer:modus'
 export function erMottakerEnhet(): boolean {

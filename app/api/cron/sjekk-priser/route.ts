@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet, opprettKvittering, flyttReminder, hentEskaleringer, merkEskalert } from '@/lib/push'
+import { hentAlleAbonnement, lagreAbonnement, sendVarsel, pushKonfigurert, hentVarselProfiler, settSoppVarslet, hentForfalteReminder, merkReminderVarslet, opprettKvittering, flyttReminder, hentEskaleringer, merkEskalert, hentAktiveRelasjoner, harRapport, lagreRapport, hentUkesData, UkesData } from '@/lib/push'
 import { nesteForekomst } from '@/lib/tid'
 import { formaterPriser, formatDato } from '@/lib/priser'
 import { ApiPris } from '@/lib/types'
@@ -21,6 +21,60 @@ function datoPluss(d: Date, dager: number): string {
 // Er klokketimen innenfor brukerens stilletimer? (vinduet kan krysse midnatt)
 function erStilletid(time: number, fra: number, til: number): boolean {
   return fra <= til ? time >= fra && time < til : time >= fra || time < til
+}
+
+// ISO-ukenøkkel («2026-W24») – én rapport per relasjon per uke
+function ukeNokkel(d: Date): string {
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dag = x.getUTCDay() || 7
+  x.setUTCDate(x.getUTCDate() + 4 - dag)
+  const aarStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1))
+  const uke = Math.ceil(((x.getTime() - aarStart.getTime()) / 86_400_000 + 1) / 7)
+  return `${x.getUTCFullYear()}-W${String(uke).padStart(2, '0')}`
+}
+
+// Rådata blir omsorg: AI formulerer ukens tall som en varm, ærlig oppsummering.
+// Faller tilbake på en enkel mal hvis AI ikke er tilgjengelig – rapporten skal
+// aldri utebli på grunn av en API-feil.
+async function lagRapportTekst(navn: string, d: UkesData): Promise<string> {
+  const mal = [
+    `${navn} bekreftet ${d.bekreftet} av ${d.planlagt} påminnelser denne uka`,
+    d.snittMin != null ? `, som regel innen ${d.snittMin} minutter` : '',
+    '.',
+    d.pulser > 0 ? ` Og ${d.pulser} ${d.pulser === 1 ? 'dag' : 'dager'} kom det et «alt er bra» ☀️` : '',
+  ].join('')
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return mal
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-opus-4-8',
+        max_tokens: 250,
+        messages: [{
+          role: 'user',
+          content: [
+            'Skriv en kort, varm ukesoppsummering (2–3 setninger, norsk bokmål) til en pårørende i appen Nær.',
+            `Personen omtales som «${navn}». Ukens tall:`,
+            `- Påminnelser som forfalt: ${d.planlagt}`,
+            `- Bekreftet: ${d.bekreftet}`,
+            d.snittMin != null ? `- Typisk tid før bekreftelse: ${d.snittMin} minutter` : '- (ingen bekreftelser å måle tid på)',
+            `- Antall «alt er bra»-trykk: ${d.pulser}`,
+            'Regler: bruk KUN tallene over, aldri dikt opp hendelser. Ingen helsetolkninger eller diagnoser.',
+            'Tonen er rolig og hjertelig, aldri alarmerende. Ikke bruk overskrift, emojier er ok (maks én).',
+          ].join('\n'),
+        }],
+      }),
+    })
+    if (!res.ok) return mal
+    const data = await res.json()
+    const tekst = data.content?.find((b: { type?: string }) => b.type === 'text')?.text?.trim()
+    return tekst || mal
+  } catch {
+    return mal
+  }
 }
 
 // Henter nåværende strømpris (etter strømstøtte, øre/kWh) for en sone
@@ -155,5 +209,23 @@ export async function GET(req: NextRequest) {
     await merkEskalert(e.kvitteringId)
   }
 
-  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder, sendtEskalering })
+  // --- Nær: ukentlig trygghetsrapport (søndag kveld, én per relasjon per uke) ---
+  let sendtRapport = 0
+  const osloTidNaa = osloNaa()
+  if (osloTidNaa.getDay() === 0 && osloTidNaa.getHours() >= 17) {
+    const uke = ukeNokkel(osloTidNaa)
+    for (const rel of await hentAktiveRelasjoner()) {
+      if (await harRapport(rel.id, uke)) continue
+      const d = await hentUkesData(rel.mottaker_id)
+      if (d.planlagt === 0 && d.pulser === 0) continue // ingenting å fortelle ennå
+      const tekst = await lagRapportTekst(rel.mottaker_navn, d)
+      await lagreRapport(rel.id, uke, tekst)
+      for (const a of subsPerBruker[rel.parorende_id] ?? []) {
+        await sendVarsel(a, `Nær — slik gikk uka til ${rel.mottaker_navn}`, tekst)
+      }
+      sendtRapport++
+    }
+  }
+
+  return NextResponse.json({ ok: true, antallAbonnement: abonnement.length, sendt, sendtSoppel, sendtReminder, sendtEskalering, sendtRapport })
 }

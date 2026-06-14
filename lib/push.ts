@@ -246,6 +246,76 @@ export async function merkEskalert(kvitteringId: string): Promise<void> {
   await r.from('kvitteringer').update({ eskalert: true }).eq('id', kvitteringId)
 }
 
+// ── Nær: ukentlig trygghetsrapport ──────────────────────────────────────────
+
+export type AktivRelasjon = {
+  id: string; parorende_id: string; mottaker_id: string; mottaker_navn: string
+}
+
+export async function hentAktiveRelasjoner(): Promise<AktivRelasjon[]> {
+  const r = getDb()
+  if (!r) return []
+  const { data } = await r
+    .from('relasjoner')
+    .select('id, parorende_id, mottaker_id, mottaker_navn')
+    .eq('status', 'aktiv')
+  return (data ?? []) as AktivRelasjon[]
+}
+
+export async function harRapport(relasjonId: string, uke: string): Promise<boolean> {
+  const r = getDb()
+  if (!r) return true // uten db: ikke prøv å lage rapport
+  const { data } = await r
+    .from('rapporter')
+    .select('id')
+    .eq('relasjon_id', relasjonId)
+    .eq('uke', uke)
+    .maybeSingle()
+  return Boolean(data)
+}
+
+export async function lagreRapport(relasjonId: string, uke: string, tekst: string): Promise<void> {
+  const r = getDb()
+  if (!r) return
+  await r.from('rapporter').insert({ relasjon_id: relasjonId, uke, tekst })
+}
+
+// Ukens tall for en mottaker: grunnlaget rapporten skrives fra.
+export type UkesData = {
+  planlagt: number      // påminnelser som forfalt siste 7 dager
+  bekreftet: number     // hvor mange som ble bekreftet
+  snittMin: number | null // typisk minutter fra levert til bekreftet
+  pulser: number        // antall «alt er bra»-trykk
+}
+
+export async function hentUkesData(mottakerId: string): Promise<UkesData> {
+  const r = getDb()
+  if (!r) return { planlagt: 0, bekreftet: 0, snittMin: null, pulser: 0 }
+  const fra = new Date(Date.now() - 7 * 86_400_000).toISOString()
+
+  const [kvitteringer, pulser] = await Promise.all([
+    r.from('kvitteringer').select('planlagt, levert, bekreftet').eq('user_id', mottakerId).gte('opprettet', fra),
+    r.from('pulser').select('id', { count: 'exact', head: true }).eq('user_id', mottakerId).gte('opprettet', fra),
+  ])
+
+  const rader = (kvitteringer.data ?? []) as { planlagt: string; levert: string | null; bekreftet: string | null }[]
+  const bekreftede = rader.filter(k => k.bekreftet)
+  let snittMin: number | null = null
+  if (bekreftede.length > 0) {
+    const sum = bekreftede.reduce((s, k) => {
+      const start = new Date(k.levert ?? k.planlagt).getTime()
+      return s + Math.max(0, (new Date(k.bekreftet as string).getTime() - start) / 60_000)
+    }, 0)
+    snittMin = Math.round(sum / bekreftede.length)
+  }
+  return {
+    planlagt: rader.length,
+    bekreftet: bekreftede.length,
+    snittMin,
+    pulser: pulser.count ?? 0,
+  }
+}
+
 // Sender ett varsel. Returnerer true ved suksess. Fjerner utløpte abonnement.
 export async function sendVarsel(a: PushAbonnement, tittel: string, tekst: string): Promise<boolean> {
   try {
